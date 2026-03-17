@@ -17,6 +17,7 @@ export const YakuButton: React.FC<YakuButtonProps> = ({
   hasNaki = false,
 }) => {
   const displayHan = hasNaki && yaku.kuisagari ? yaku.han - 1 : yaku.han;
+  const isKuisagariActive = hasNaki && !!yaku.kuisagari;
 
   return (
     <button
@@ -33,12 +34,21 @@ export const YakuButton: React.FC<YakuButtonProps> = ({
         }
       `}
     >
-      <div className="flex justify-between items-center">
-        <span className="text-left">{yaku.name}</span>
-        <span className="text-xs bg-white/20 px-2 py-1 rounded">
-          {displayHan}翻
-          {hasNaki && yaku.kuisagari && (
-            <span className="text-[10px] ml-1 opacity-75">(食い下がり)</span>
+      <div className="flex justify-between items-center gap-2">
+        <span className="text-left text-sm md:text-base">{yaku.name}</span>
+        <span
+          className={`
+            inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border
+            ${
+              isKuisagariActive
+                ? 'bg-red-500/20 text-red-200 border-red-400 animate-pulse'
+                : 'bg-white/15 text-amber-100 border-amber-300/60'
+            }
+          `}
+        >
+          <span className="font-mono text-sm">{displayHan}翻</span>
+          {isKuisagariActive && (
+            <span className="text-[10px] tracking-tight">食い下がり</span>
           )}
         </span>
       </div>
