@@ -143,6 +143,11 @@ function App() {
     isOya: false,
   });
 
+  const hasDaisangen =
+    gameState.selectedYaku.includes('haku') &&
+    gameState.selectedYaku.includes('hatsu') &&
+    gameState.selectedYaku.includes('chun');
+
   const isIncompatibleWithSelected = (yakuId: string, selectedYaku: string[]) => {
     const incompatible = INCOMPATIBLE_MAP.get(yakuId);
     if (!incompatible) return false;
@@ -455,6 +460,12 @@ function App() {
                         </div>
                       );
                     })}
+                    {hasDaisangen && (
+                      <div className="flex justify-between items-center bg-red-900/30 rounded-lg px-3 py-2 border border-red-500/30">
+                        <span className="text-white text-sm">大三元（役満）</span>
+                        <span className="text-amber-300 text-xs font-bold">役満</span>
+                      </div>
+                    )}
                     {gameState.winMethod === 'tsumo' && !gameState.hasNaki && !gameState.selectedYaku.includes('tsumo') && (
                       <div className="flex justify-between items-center bg-emerald-900/50 rounded-lg px-3 py-2">
                         <span className="text-white text-sm">門前清自摸和（ツモ）</span>

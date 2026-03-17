@@ -87,6 +87,11 @@ export function calculateFu(gameState: GameState): number {
 }
 
 export function calculateScore(gameState: GameState): ScoreResult | null {
+  const hasDaisangen =
+    gameState.selectedYaku.includes('haku') &&
+    gameState.selectedYaku.includes('hatsu') &&
+    gameState.selectedYaku.includes('chun');
+
   const selectedYakuData = gameState.selectedYaku
     .map(id => YAKU_LIST.find(y => y.id === id))
     .filter(Boolean);
@@ -100,6 +105,11 @@ export function calculateScore(gameState: GameState): ScoreResult | null {
 
   if (hasAutoTsumo) {
     totalHan += 1;
+  }
+
+  if (hasDaisangen) {
+    // 大三元は役満として扱う（この簡易アプリでは役満は一律13翻相当）
+    totalHan = Math.max(totalHan, 13);
   }
 
   if (gameState.hasNaki) {
@@ -130,7 +140,7 @@ export function calculateScore(gameState: GameState): ScoreResult | null {
   let koPay: number | undefined;
 
   if (totalHan >= 13) {
-    scoreName = '役満';
+    scoreName = hasDaisangen ? '大三元（役満）' : '役満';
     if (isOya) {
       ronPay = YAKUMAN_SCORES.oya.ron;
       if (isTsumo) {
