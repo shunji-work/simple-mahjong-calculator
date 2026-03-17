@@ -257,7 +257,7 @@ function App() {
           <div className="flex items-center justify-center gap-3 mb-2">
             <Calculator className="w-10 h-10 text-amber-400" />
             <h1 className="text-4xl md:text-5xl font-bold text-white">
-              麻雀かんたん計算機
+              麻雀点数ナビ
             </h1>
           </div>
           <p className="text-emerald-200 text-sm md:text-base">
