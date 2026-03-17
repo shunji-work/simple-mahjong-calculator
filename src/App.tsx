@@ -148,6 +148,8 @@ function App() {
     gameState.selectedYaku.includes('hatsu') &&
     gameState.selectedYaku.includes('chun');
 
+  const hasYakuman = gameState.selectedYaku.includes('yakuman') || hasDaisangen;
+
   const isIncompatibleWithSelected = (yakuId: string, selectedYaku: string[]) => {
     const incompatible = INCOMPATIBLE_MAP.get(yakuId);
     if (!incompatible) return false;
@@ -160,6 +162,9 @@ function App() {
       selectedYaku: prev.selectedYaku.includes(yakuId)
         ? prev.selectedYaku.filter((id) => id !== yakuId)
         : (() => {
+            if (yakuId === 'yakuman') {
+              return ['yakuman'];
+            }
             const incompatible = INCOMPATIBLE_MAP.get(yakuId) ?? new Set<string>();
             const cleaned = prev.selectedYaku.filter((id) => !incompatible.has(id));
             return [...cleaned, yakuId];
@@ -233,6 +238,7 @@ function App() {
     if (!yaku) return false;
     if (yaku.menzenOnly && gameState.hasNaki) return true;
     if (yakuId === 'tsumo' && gameState.winMethod === 'ron') return true;
+    if (hasYakuman && !gameState.selectedYaku.includes(yakuId) && yakuId !== 'yakuman') return true;
     if (!gameState.selectedYaku.includes(yakuId) && isIncompatibleWithSelected(yakuId, gameState.selectedYaku)) {
       return true;
     }
