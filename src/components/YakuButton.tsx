@@ -41,7 +41,7 @@ export const YakuButton: React.FC<YakuButtonProps> = ({
             inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border
             ${
               isKuisagariActive
-                ? 'bg-red-500/20 text-red-200 border-red-400 animate-pulse'
+                ? 'bg-red-500/20 text-red-200 border-red-400'
                 : 'bg-white/15 text-amber-100 border-amber-300/60'
             }
           `}
