@@ -141,6 +141,8 @@ const DEFAULT_FU_ASSISTANT_STATE: FuAssistantState = {
   specialCase: 'none',
 };
 
+const AUTO_TSUMO_YAKU_ID = 'tsumo';
+
 function buildIncompatibleMap(pairs: Array<[string, string]>): Map<string, Set<string>> {
   const map = new Map<string, Set<string>>();
   const add = (a: string, b: string) => {
@@ -358,10 +360,11 @@ function App() {
     return false;
   };
 
-  const sRankYaku = getCategoryYaku('S');
+  const sRankYaku = getCategoryYaku('S').filter((yaku) => yaku.id !== AUTO_TSUMO_YAKU_ID);
   const aRankYaku = getCategoryYaku('A');
   const bRankYaku = getCategoryYaku('B');
   const cRankYaku = getCategoryYaku('C');
+  const visibleSelectedYaku = gameState.selectedYaku.filter((yakuId) => yakuId !== AUTO_TSUMO_YAKU_ID);
   const currentScore = mode === 'manual' ? manualScore : yakuScore;
   const currentWinMethod = mode === 'manual' ? manualState.winMethod : gameState.winMethod;
 
@@ -391,7 +394,7 @@ function App() {
                         onClick={() => setYakuWinMethod('tsumo')}
                         className={`w-full rounded-lg px-4 py-3 text-base font-bold transition-all duration-200 sm:px-6 sm:text-lg ${
                           gameState.winMethod === 'tsumo'
-                            ? 'scale-105 border-2 border-amber-600 bg-amber-500 text-white shadow-lg'
+                            ? 'scale-[1.02] border-2 border-rose-300 bg-rose-200 text-rose-950 shadow-lg'
                             : 'border-2 border-emerald-800 bg-emerald-700 text-white hover:bg-emerald-600'
                         }`}
                       >
@@ -401,7 +404,7 @@ function App() {
                         onClick={() => setYakuWinMethod('ron')}
                         className={`w-full rounded-lg px-4 py-3 text-base font-bold transition-all duration-200 sm:px-6 sm:text-lg ${
                           gameState.winMethod === 'ron'
-                            ? 'scale-105 border-2 border-amber-600 bg-amber-500 text-white shadow-lg'
+                            ? 'scale-[1.02] border-2 border-red-700 bg-red-600 text-white shadow-lg'
                             : 'border-2 border-emerald-800 bg-emerald-700 text-white hover:bg-emerald-600'
                         }`}
                       >
@@ -414,7 +417,7 @@ function App() {
                         onClick={toggleYakuNaki}
                         className={`col-span-2 rounded-lg px-4 py-3 font-medium transition-all duration-200 sm:col-span-1 ${
                           gameState.hasNaki
-                            ? 'border-2 border-red-700 bg-red-600 text-white shadow-lg'
+                            ? 'scale-[1.02] border-2 border-amber-600 bg-amber-500 text-white shadow-lg'
                             : 'border-2 border-emerald-800 bg-emerald-700 text-white hover:bg-emerald-600'
                         }`}
                       >
@@ -592,13 +595,13 @@ function App() {
               )}
 
               {mode === 'yaku' &&
-                (gameState.selectedYaku.length > 0 ||
+                (visibleSelectedYaku.length > 0 ||
                   gameState.doraCount > 0 ||
                   (gameState.winMethod === 'tsumo' && !gameState.hasNaki)) && (
                   <div className="mt-6 hidden rounded-xl border border-emerald-700 bg-emerald-800/50 p-6 shadow-xl backdrop-blur-sm lg:block">
                     <h3 className="mb-3 text-sm font-bold text-amber-400">選択中の役</h3>
                     <div className="space-y-2">
-                      {gameState.selectedYaku.map((yakuId) => {
+                      {visibleSelectedYaku.map((yakuId) => {
                         const yaku = YAKU_LIST.find((item) => item.id === yakuId);
                         const displayHan =
                           gameState.hasNaki && yaku?.kuisagari ? yaku.han - 1 : yaku?.han;
@@ -619,8 +622,7 @@ function App() {
                         </div>
                       )}
                       {gameState.winMethod === 'tsumo' &&
-                        !gameState.hasNaki &&
-                        !gameState.selectedYaku.includes('tsumo') && (
+                        !gameState.hasNaki && (
                           <div className="flex items-center justify-between rounded-lg bg-emerald-900/50 px-3 py-2">
                             <span className="text-sm text-white">門前清自摸和（ツモ）</span>
                             <span className="text-xs font-bold text-amber-300">1翻</span>

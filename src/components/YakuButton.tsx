@@ -27,10 +27,10 @@ export const YakuButton: React.FC<YakuButtonProps> = ({
         w-full px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200
         ${
           isSelected
-            ? 'bg-amber-500 text-white shadow-lg scale-105 border-2 border-amber-600'
+            ? 'bg-amber-500 text-white shadow-lg scale-[1.02] border-2 border-amber-600'
             : isDisabled
             ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
-            : 'bg-emerald-800 text-white hover:bg-emerald-700 hover:scale-102 border-2 border-emerald-900 shadow-md'
+            : 'bg-emerald-800 text-white hover:bg-emerald-700 hover:scale-[1.01] border-2 border-emerald-900 shadow-md'
         }
       `}
     >

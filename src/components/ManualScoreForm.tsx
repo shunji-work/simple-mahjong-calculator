@@ -52,7 +52,9 @@ export const ManualScoreForm: React.FC<ManualScoreFormProps> = ({
                 onClick={() => onWinMethodChange(method)}
                 className={`rounded-lg px-4 py-3 text-base font-bold transition-all ${
                   manualState.winMethod === method
-                    ? 'scale-105 border-2 border-amber-600 bg-amber-500 text-white shadow-lg'
+                    ? method === 'tsumo'
+                      ? 'scale-[1.02] border-2 border-rose-300 bg-rose-200 text-rose-950 shadow-lg'
+                      : 'scale-[1.02] border-2 border-red-700 bg-red-600 text-white shadow-lg'
                     : 'border-2 border-emerald-800 bg-emerald-700 text-white hover:bg-emerald-600'
                 }`}
               >
@@ -69,7 +71,7 @@ export const ManualScoreForm: React.FC<ManualScoreFormProps> = ({
               onClick={onToggleNaki}
               className={`rounded-lg px-4 py-3 text-sm font-semibold transition-all ${
                 manualState.hasNaki
-                  ? 'border-2 border-red-700 bg-red-600 text-white'
+                  ? 'scale-[1.02] border-2 border-amber-600 bg-amber-500 text-white shadow-lg'
                   : 'border-2 border-emerald-800 bg-emerald-700 text-white hover:bg-emerald-600'
               }`}
             >
