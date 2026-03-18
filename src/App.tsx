@@ -261,7 +261,7 @@ function App() {
             </h1>
           </div>
           <p className="text-emerald-200 text-sm md:text-base">
-            役を選ぶだけで点数を自動計算
+            選んだ役から、瞬時に点数を導く。
           </p>
         </header>
 
