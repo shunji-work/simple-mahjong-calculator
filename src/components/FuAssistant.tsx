@@ -31,9 +31,9 @@ const WAIT_OPTIONS: Array<{ value: WaitType; label: string }> = [
 ];
 
 const SPECIAL_CASE_OPTIONS: Array<{ value: FuSpecialCase; label: string; helper: string }> = [
-  { value: 'none', label: 'なし', helper: '通常の符加算を使います' },
-  { value: 'pinfu', label: '平和', helper: 'ツモ20符 / ロン30符を優先' },
-  { value: 'chiitoitsu', label: '七対子', helper: '25符固定' },
+  { value: 'none', label: 'なし', helper: '通常の符計算を使います。' },
+  { value: 'pinfu', label: '平和', helper: 'ツモ20符 / ロン30符の固定です。' },
+  { value: 'chiitoitsu', label: '七対子', helper: '25符固定です。' },
 ];
 
 const COUNTER_FIELDS: Array<{
@@ -76,45 +76,57 @@ export const FuAssistant: React.FC<FuAssistantProps> = ({
   const meldCount = getFuAssistantMeldCount(state);
   const remainingMeldSlots = getMaxRemainingMeldSlots(state);
 
+  const getOptionButtonClassName = (isSelected: boolean, disabled = false) => {
+    if (disabled) {
+      return 'cursor-not-allowed border border-gray-700 bg-gray-800 text-gray-400';
+    }
+    return isSelected
+      ? 'border-2 border-amber-600 bg-amber-500 text-white shadow-lg'
+      : 'border border-blue-300/50 bg-blue-950/40 text-blue-50 hover:bg-blue-900/70';
+  };
+
   return (
-    <div className="rounded-xl border border-emerald-700 bg-emerald-800/50 p-4 shadow-xl backdrop-blur-sm sm:p-6">
+    <div className="rounded-2xl border border-dashed border-blue-300/60 bg-blue-100/10 p-4 shadow-lg backdrop-blur-sm sm:p-6">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-white">符計算補助</h2>
-          <p className="mt-1 text-sm text-emerald-200">
-            下の内容から符を自動計算し、上段の符へ反映します。
+          <div className="inline-flex rounded-full border border-blue-200/60 bg-white/15 px-3 py-1 text-xs font-semibold tracking-[0.2em] text-blue-50">
+            OPTIONAL ASSIST
+          </div>
+          <h2 className="mt-3 text-xl font-bold text-white">符計算補助</h2>
+          <p className="mt-1 text-sm text-blue-100/85">
+            符が分からないときだけ使う補助機能です。ここで出した符を上段の点数入力へ反映します。
           </p>
         </div>
         <button
           onClick={onReset}
-          className="rounded-lg border border-emerald-600 bg-emerald-900/70 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-800"
+          className="rounded-lg border border-blue-200/60 bg-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
         >
           入力をクリア
         </button>
       </div>
 
-      <div className="mb-5 grid gap-3 rounded-xl border border-emerald-700 bg-emerald-950/40 p-4 sm:grid-cols-2">
+      <div className="mb-5 grid gap-3 rounded-xl border border-blue-200/60 bg-white/90 p-4 text-slate-800 sm:grid-cols-2">
         <div>
-          <div className="text-xs uppercase tracking-[0.2em] text-emerald-400">共有状態</div>
-          <div className="mt-2 text-lg font-semibold text-white">
+          <div className="text-xs uppercase tracking-[0.2em] text-blue-700">CURRENT STATE</div>
+          <div className="mt-2 text-lg font-semibold text-slate-800">
             {winMethod === 'tsumo' ? 'ツモ' : 'ロン'} / {hasNaki ? '鳴きあり' : '門前'}
           </div>
         </div>
-        <div className="text-sm text-emerald-200">
-          ツモの 2 符、門前ロンの 10 符はこの状態を使って自動計算します。
+        <div className="text-sm text-slate-600">
+          ツモの2符、門前ロンの10符はこの状態を見て自動で計算します。
         </div>
       </div>
 
       {!isApplicable && (
-        <div className="mb-5 rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-100">
-          4翻以上ではこの簡易符入力UIは使えません。通常手の3翻以下専用です。
+        <div className="mb-5 rounded-xl border border-red-300/50 bg-red-500/15 p-4 text-sm text-red-50">
+          4翻以上ではこの簡易符入力UIは使えません。通常形の3翻以下で使ってください。
         </div>
       )}
 
       {isApplicable && (
-        <div className="mb-5 rounded-xl border border-emerald-700 bg-emerald-950/40 p-4 text-sm text-emerald-200">
+        <div className="mb-5 rounded-xl border border-blue-200/60 bg-white/15 p-4 text-sm text-blue-50">
           現在の面子数: {meldCount} / 4
-          <span className="ml-2 text-emerald-300">残り {remainingMeldSlots} 面子まで入力できます。</span>
+          <span className="ml-2 text-blue-100/75">残り {remainingMeldSlots} 面子まで入力できます。</span>
         </div>
       )}
 
@@ -134,91 +146,90 @@ export const FuAssistant: React.FC<FuAssistantProps> = ({
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-3">
-        <label className="rounded-xl border border-emerald-700 bg-emerald-900/50 p-4">
-          <div className="mb-3 text-sm font-semibold text-emerald-200">待ちタイプ</div>
-          <select
-            value={state.waitType}
-            onChange={(event) => onChange('waitType', event.target.value as WaitType)}
-            disabled={!isApplicable || isSpecialCaseLocked}
-            className="w-full rounded-lg border border-emerald-600 bg-emerald-950 px-4 py-3 text-white outline-none transition focus:border-amber-400"
-          >
+        <div className="rounded-xl border border-blue-300/40 bg-blue-950/25 p-4">
+          <div className="mb-3 text-sm font-semibold text-blue-100">待ちタイプ</div>
+          <div className="grid grid-cols-2 gap-3">
             {WAIT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
+              <button
+                key={option.value}
+                onClick={() => onChange('waitType', option.value)}
+                disabled={!isApplicable || isSpecialCaseLocked}
+                className={`rounded-lg px-4 py-3 text-sm font-semibold transition-all ${getOptionButtonClassName(
+                  state.waitType === option.value,
+                  !isApplicable || isSpecialCaseLocked,
+                )}`}
+              >
                 {option.label}
-              </option>
+              </button>
             ))}
-          </select>
-        </label>
+          </div>
+        </div>
 
-        <div className="rounded-xl border border-emerald-700 bg-emerald-900/50 p-4">
-          <div className="mb-3 text-sm font-semibold text-emerald-200">雀頭</div>
+        <div className="rounded-xl border border-blue-300/40 bg-blue-950/25 p-4">
+          <div className="mb-3 text-sm font-semibold text-blue-100">雀頭</div>
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => onChange('isYakuhaiPair', false)}
               disabled={!isApplicable || isSpecialCaseLocked}
-              className={`rounded-lg px-4 py-3 text-sm font-semibold transition-all ${
-                !isApplicable || isSpecialCaseLocked
-                  ? 'cursor-not-allowed border border-gray-700 bg-gray-800 text-gray-400'
-                  : !state.isYakuhaiPair
-                  ? 'border-2 border-amber-600 bg-amber-500 text-white'
-                  : 'border border-emerald-700 bg-emerald-950 text-emerald-100 hover:bg-emerald-900'
-              }`}
+              className={`rounded-lg px-4 py-3 text-sm font-semibold transition-all ${getOptionButtonClassName(
+                !state.isYakuhaiPair,
+                !isApplicable || isSpecialCaseLocked,
+              )}`}
             >
               役牌ではない
             </button>
             <button
               onClick={() => onChange('isYakuhaiPair', true)}
               disabled={!isApplicable || isSpecialCaseLocked}
-              className={`rounded-lg px-4 py-3 text-sm font-semibold transition-all ${
-                !isApplicable || isSpecialCaseLocked
-                  ? 'cursor-not-allowed border border-gray-700 bg-gray-800 text-gray-400'
-                  : state.isYakuhaiPair
-                  ? 'border-2 border-amber-600 bg-amber-500 text-white'
-                  : 'border border-emerald-700 bg-emerald-950 text-emerald-100 hover:bg-emerald-900'
-              }`}
+              className={`rounded-lg px-4 py-3 text-sm font-semibold transition-all ${getOptionButtonClassName(
+                state.isYakuhaiPair,
+                !isApplicable || isSpecialCaseLocked,
+              )}`}
             >
               役牌
             </button>
           </div>
         </div>
 
-        <label className="rounded-xl border border-emerald-700 bg-emerald-900/50 p-4">
-          <div className="mb-3 text-sm font-semibold text-emerald-200">例外</div>
-          <select
-            value={state.specialCase}
-            onChange={(event) => onChange('specialCase', event.target.value as FuSpecialCase)}
-            className="w-full rounded-lg border border-emerald-600 bg-emerald-950 px-4 py-3 text-white outline-none transition focus:border-amber-400"
-          >
+        <div className="rounded-xl border border-blue-300/40 bg-blue-950/25 p-4">
+          <div className="mb-3 text-sm font-semibold text-blue-100">例外</div>
+          <div className="grid gap-3">
             {SPECIAL_CASE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
+              <button
+                key={option.value}
+                onClick={() => onChange('specialCase', option.value)}
+                className={`rounded-lg px-4 py-3 text-left text-sm font-semibold transition-all ${getOptionButtonClassName(
+                  state.specialCase === option.value,
+                )}`}
+              >
                 {option.label}
-              </option>
+              </button>
             ))}
-          </select>
-          <div className="mt-2 text-xs text-emerald-300">
+          </div>
+          <div className="mt-2 text-xs text-blue-100/75">
             {SPECIAL_CASE_OPTIONS.find((option) => option.value === state.specialCase)?.helper}
           </div>
-        </label>
+        </div>
       </div>
 
-      <div className="mt-5 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+      <div className="mt-5 rounded-xl border border-blue-200/60 bg-white/15 p-4">
         <div className="grid gap-3 md:grid-cols-3">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-amber-300">計算途中</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-blue-100/75">RAW FU</div>
             <div className="mt-2 text-2xl font-bold text-white">{result.rawFu}符</div>
           </div>
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-amber-300">最終符</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-blue-100/75">FINAL FU</div>
             <div className="mt-2 text-2xl font-bold text-white">{result.roundedFu}符</div>
           </div>
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-amber-300">反映状態</div>
-            <div className="mt-2 text-sm font-medium text-amber-100">
+            <div className="text-xs uppercase tracking-[0.2em] text-blue-100/75">STATUS</div>
+            <div className="mt-2 text-sm font-medium text-blue-50">
               {!result.isApplicable
-                ? '4翻以上のため簡易符入力は停止中'
+                ? '4翻以上のため補助入力は停止中です。'
                 : result.isValid
-                ? `上段の符に ${result.roundedFu} 符を反映済み`
-                : result.error}
+                  ? `上段の符へ ${result.roundedFu}符 を反映しています。`
+                  : result.error}
             </div>
           </div>
         </div>

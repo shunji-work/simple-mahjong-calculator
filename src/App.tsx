@@ -164,12 +164,12 @@ const INCOMPATIBLE_MAP = buildIncompatibleMap(INCOMPATIBLE_PAIRS);
 
 function EmptyScoreCard({ mode }: { mode: AppMode }) {
   return (
-    <div className="rounded-xl border border-emerald-700 bg-emerald-800/50 p-8 text-center shadow-xl backdrop-blur-sm">
-      <Calculator className="mx-auto mb-4 h-16 w-16 text-emerald-600" />
-      <p className="text-lg text-emerald-200">
+    <div className={`rounded-xl p-8 text-center shadow-xl backdrop-blur-sm ${mode === 'manual' ? 'border border-blue-200/40 bg-blue-950/25' : 'border border-emerald-700 bg-emerald-800/50'}`}>
+      <Calculator className={`mx-auto mb-4 h-16 w-16 ${mode === 'manual' ? 'text-blue-100' : 'text-emerald-600'}`} />
+      <p className={`text-lg ${mode === 'manual' ? 'text-white' : 'text-emerald-200'}`}>
         {mode === 'manual' ? '翻数と符を入力してください' : '役を選択してください'}
       </p>
-      <p className="mt-2 text-sm text-emerald-400">
+      <p className={`mt-2 text-sm ${mode === 'manual' ? 'text-blue-100/75' : 'text-emerald-400'}`}>
         {mode === 'manual'
           ? '下段の符計算補助を使うと、上段の符へ自動反映されます'
           : 'あがり方と役を選ぶと自動で点数を計算します'}
@@ -182,6 +182,7 @@ function App() {
   const [mode, setMode] = useState<AppMode>('yaku');
   const [gameState, setGameState] = useState<GameState>(DEFAULT_GAME_STATE);
   const [manualState, setManualState] = useState<ManualState>(DEFAULT_MANUAL_STATE);
+  const [hasTouchedFuAssistant, setHasTouchedFuAssistant] = useState(false);
   const [fuAssistantState, setFuAssistantState] = useState<FuAssistantState>(
     DEFAULT_FU_ASSISTANT_STATE,
   );
@@ -273,6 +274,10 @@ function App() {
   );
 
   useEffect(() => {
+    if (!hasTouchedFuAssistant) {
+      return;
+    }
+
     if (!fuAssistantResult.isApplicable) {
       setManualState((prev) => ({
         ...prev,
@@ -290,7 +295,7 @@ function App() {
       fu: fuAssistantResult.roundedFu,
       fuSource: 'assistant',
     }));
-  }, [fuAssistantResult]);
+  }, [fuAssistantResult, hasTouchedFuAssistant]);
 
   useEffect(() => {
     setFuAssistantState((prev) => sanitizeFuAssistantState(prev, { hasNaki: manualState.hasNaki }));
@@ -324,6 +329,7 @@ function App() {
       return;
     }
 
+    setHasTouchedFuAssistant(true);
     setFuAssistantState((prev) =>
       sanitizeFuAssistantState(
         {
@@ -337,10 +343,13 @@ function App() {
 
   const resetManualMode = () => {
     setManualState(DEFAULT_MANUAL_STATE);
+    setFuAssistantState(DEFAULT_FU_ASSISTANT_STATE);
+    setHasTouchedFuAssistant(false);
   };
 
   const resetFuAssistant = () => {
     setFuAssistantState(DEFAULT_FU_ASSISTANT_STATE);
+    setHasTouchedFuAssistant(false);
   };
 
   const isYakuDisabled = (yakuId: string) => {
@@ -367,16 +376,23 @@ function App() {
   const visibleSelectedYaku = gameState.selectedYaku.filter((yakuId) => yakuId !== AUTO_TSUMO_YAKU_ID);
   const currentScore = mode === 'manual' ? manualScore : yakuScore;
   const currentWinMethod = mode === 'manual' ? manualState.winMethod : gameState.winMethod;
+  const pageBackgroundClass =
+    mode === 'manual'
+      ? 'bg-gradient-to-br from-[#2D71E2] via-[#245fc2] to-[#1d4fa1]'
+      : 'bg-gradient-to-br from-emerald-950 via-emerald-900 to-green-950';
+  const containerTextClass = mode === 'manual' ? 'text-white' : 'text-white';
+  const headerSubTextClass = mode === 'manual' ? 'text-blue-100/90' : 'text-emerald-200';
+  const footerTextClass = mode === 'manual' ? 'text-blue-100/80' : 'text-emerald-300';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-emerald-900 to-green-950">
+    <div className={`min-h-screen ${pageBackgroundClass}`}>
       <div className="container mx-auto max-w-6xl px-3 py-4 sm:px-4 sm:py-6">
         <header className="mb-6 text-center sm:mb-8">
           <div className="mb-2 flex items-center justify-center gap-2 sm:gap-3">
             <Calculator className="h-8 w-8 text-amber-400 sm:h-10 sm:w-10" />
-            <h1 className="text-3xl font-bold text-white sm:text-4xl md:text-5xl">麻雀点数ナビ</h1>
+            <h1 className={`text-3xl font-bold sm:text-4xl md:text-5xl ${containerTextClass}`}>麻雀点数ナビ</h1>
           </div>
-          <p className="text-sm text-emerald-200 md:text-base">
+          <p className={`text-sm md:text-base ${headerSubTextClass}`}>
             役からでも、翻数と符からでも、すぐに点数を確認。
           </p>
         </header>
@@ -450,7 +466,11 @@ function App() {
 
                   <div className="min-w-0 flex-1 lg:hidden">
                     {currentScore ? (
-                      <ScoreDisplay score={currentScore} winMethod={currentWinMethod} />
+                      <ScoreDisplay
+                        score={currentScore}
+                        winMethod={currentWinMethod}
+                        variant="yaku"
+                      />
                     ) : (
                       <EmptyScoreCard mode={mode} />
                     )}
@@ -567,7 +587,11 @@ function App() {
 
                 <div className="lg:hidden">
                   {currentScore ? (
-                    <ScoreDisplay score={currentScore} winMethod={currentWinMethod} />
+                    <ScoreDisplay
+                      score={currentScore}
+                      winMethod={currentWinMethod}
+                      variant="manual"
+                    />
                   ) : (
                     <EmptyScoreCard mode={mode} />
                   )}
@@ -589,7 +613,11 @@ function App() {
           <div className="lg:col-span-1">
             <div className="sticky top-6 hidden lg:block">
               {currentScore ? (
-                <ScoreDisplay score={currentScore} winMethod={currentWinMethod} />
+                <ScoreDisplay
+                  score={currentScore}
+                  winMethod={currentWinMethod}
+                  variant={mode === 'manual' ? 'manual' : 'yaku'}
+                />
               ) : (
                 <EmptyScoreCard mode={mode} />
               )}
@@ -641,25 +669,25 @@ function App() {
                 )}
 
               {mode === 'manual' && (
-                <div className="mt-6 rounded-xl border border-emerald-700 bg-emerald-800/50 p-6 shadow-xl backdrop-blur-sm">
+                <div className="mt-6 rounded-xl border border-blue-200/40 bg-blue-950/25 p-6 shadow-xl backdrop-blur-sm">
                   <h3 className="mb-3 text-sm font-bold text-amber-400">マニュアル入力の状態</h3>
-                  <div className="space-y-2 text-sm text-emerald-100">
-                    <div className="flex items-center justify-between rounded-lg bg-emerald-900/50 px-3 py-2">
+                  <div className="space-y-2 text-sm text-blue-50">
+                    <div className="flex items-center justify-between rounded-lg bg-white/10 px-3 py-2">
                       <span>あがり方</span>
                       <span>{manualState.winMethod === 'tsumo' ? 'ツモ' : 'ロン'}</span>
                     </div>
-                    <div className="flex items-center justify-between rounded-lg bg-emerald-900/50 px-3 py-2">
+                    <div className="flex items-center justify-between rounded-lg bg-white/10 px-3 py-2">
                       <span>状態</span>
                       <span>
                         {manualState.isOya ? '親' : '子'} /{' '}
                         {manualState.hasNaki ? '鳴きあり' : '門前'}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between rounded-lg bg-emerald-900/50 px-3 py-2">
+                    <div className="flex items-center justify-between rounded-lg bg-white/10 px-3 py-2">
                       <span>翻数</span>
                       <span>{manualState.han ? `${manualState.han}翻` : '未選択'}</span>
                     </div>
-                    <div className="flex items-center justify-between rounded-lg bg-emerald-900/50 px-3 py-2">
+                    <div className="flex items-center justify-between rounded-lg bg-white/10 px-3 py-2">
                       <span>符</span>
                       <span>
                         {manualState.fu ? `${manualState.fu}符` : '未選択'}{' '}
@@ -673,7 +701,7 @@ function App() {
           </div>
         </div>
 
-        <footer className="mt-12 text-center text-sm text-emerald-300">
+        <footer className={`mt-12 text-center text-sm ${footerTextClass}`}>
           <p>初心者向け麻雀点数計算ツール</p>
         </footer>
       </div>

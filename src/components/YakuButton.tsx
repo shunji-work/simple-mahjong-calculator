@@ -21,6 +21,7 @@ export const YakuButton: React.FC<YakuButtonProps> = ({
 
   return (
     <button
+      data-testid={`yaku-${yaku.id}`}
       onClick={onClick}
       disabled={isDisabled}
       className={`

@@ -37,12 +37,12 @@ export const CounterField: React.FC<CounterFieldProps> = ({
       className={`rounded-xl border p-4 ${
         disabled
           ? 'border-gray-700 bg-gray-900/40 opacity-70'
-          : 'border-emerald-700 bg-emerald-900/50'
+          : 'border-blue-300/50 bg-blue-950/25'
       }`}
     >
       <div className="mb-3">
         <div className="text-sm font-semibold text-white">{label}</div>
-        {helper ? <div className="mt-1 text-xs text-emerald-300">{helper}</div> : null}
+        {helper ? <div className="mt-1 text-xs text-blue-100/75">{helper}</div> : null}
       </div>
       <div className="flex items-center justify-between gap-3">
         <button
@@ -56,7 +56,7 @@ export const CounterField: React.FC<CounterFieldProps> = ({
         >
           <Minus className="h-5 w-5" />
         </button>
-        <div className="min-w-[64px] rounded-lg bg-amber-500 px-4 py-2 text-center text-2xl font-bold text-white">
+        <div className="min-w-[64px] rounded-lg border border-blue-200/60 bg-white/90 px-4 py-2 text-center text-2xl font-bold text-blue-900">
           {value}
         </div>
         <button
@@ -65,7 +65,7 @@ export const CounterField: React.FC<CounterFieldProps> = ({
           className={`flex h-10 w-10 items-center justify-center rounded-lg transition-all ${
             isIncrementDisabled
               ? 'cursor-not-allowed bg-gray-700 text-gray-500'
-              : 'bg-green-600 text-white hover:bg-green-700'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
           }`}
         >
           <Plus className="h-5 w-5" />
