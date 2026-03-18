@@ -34,11 +34,11 @@ export const YakuButton: React.FC<YakuButtonProps> = ({
         }
       `}
     >
-      <div className="flex justify-between items-center gap-2">
-        <span className="text-left text-sm md:text-base">{yaku.name}</span>
+      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <span className="text-left text-sm leading-snug md:text-base">{yaku.name}</span>
         <span
           className={`
-            inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border
+            inline-flex items-center gap-1 self-start rounded-full border px-2.5 py-1 text-xs font-semibold sm:self-auto
             ${
               isKuisagariActive
                 ? 'bg-red-500/20 text-red-200 border-red-400'

@@ -13,14 +13,14 @@ export const DoraCounter: React.FC<DoraCounterProps> = ({
   onDecrement,
 }) => {
   return (
-    <div className="w-full bg-emerald-800 rounded-lg p-4 shadow-md border-2 border-emerald-900">
-      <div className="flex items-center justify-between gap-3">
+    <div className="w-full rounded-lg border-2 border-emerald-900 bg-emerald-800 p-4 shadow-md">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1">
           <p className="text-white font-medium text-sm mb-1">ドラ</p>
           <p className="text-emerald-300 text-xs">タップで加算</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 sm:justify-start">
           <button
             onClick={onDecrement}
             disabled={count === 0}
@@ -33,7 +33,7 @@ export const DoraCounter: React.FC<DoraCounterProps> = ({
             <Minus className="w-5 h-5" />
           </button>
 
-          <div className="bg-amber-500 text-white font-bold text-2xl rounded-lg px-4 py-2 min-w-[60px] text-center shadow-lg">
+          <div className="min-w-[60px] rounded-lg bg-amber-500 px-4 py-2 text-center text-2xl font-bold text-white shadow-lg">
             {count}
           </div>
 

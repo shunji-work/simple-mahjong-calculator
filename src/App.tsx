@@ -252,11 +252,11 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-emerald-900 to-green-950">
-      <div className="container mx-auto px-4 py-6 max-w-6xl">
-        <header className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <Calculator className="w-10 h-10 text-amber-400" />
-            <h1 className="text-4xl md:text-5xl font-bold text-white">
+      <div className="container mx-auto max-w-6xl px-3 py-4 sm:px-4 sm:py-6">
+        <header className="mb-6 text-center sm:mb-8">
+          <div className="mb-2 flex items-center justify-center gap-2 sm:gap-3">
+            <Calculator className="h-8 w-8 text-amber-400 sm:h-10 sm:w-10" />
+            <h1 className="text-3xl font-bold text-white sm:text-4xl md:text-5xl">
               麻雀点数ナビ
             </h1>
           </div>
@@ -265,14 +265,14 @@ function App() {
           </p>
         </header>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             <div className="flex flex-col lg:flex-row gap-6">
-              <div className="bg-emerald-800/50 backdrop-blur-sm rounded-xl p-6 shadow-xl border border-emerald-700 flex-1">
-                <div className="flex flex-wrap gap-3 mb-6">
+              <div className="flex-1 rounded-xl border border-emerald-700 bg-emerald-800/50 p-4 shadow-xl backdrop-blur-sm sm:p-6">
+                <div className="mb-4 grid grid-cols-2 gap-3 sm:mb-6">
                   <button
                     onClick={() => setWinMethod('tsumo')}
-                    className={`flex-1 min-w-[120px] px-6 py-3 rounded-lg font-bold text-lg transition-all duration-200 ${
+                    className={`w-full rounded-lg px-4 py-3 text-base font-bold transition-all duration-200 sm:px-6 sm:text-lg ${
                       gameState.winMethod === 'tsumo'
                         ? 'bg-amber-500 text-white shadow-lg scale-105 border-2 border-amber-600'
                         : 'bg-emerald-700 text-white hover:bg-emerald-600 border-2 border-emerald-800'
@@ -282,7 +282,7 @@ function App() {
                   </button>
                   <button
                     onClick={() => setWinMethod('ron')}
-                    className={`flex-1 min-w-[120px] px-6 py-3 rounded-lg font-bold text-lg transition-all duration-200 ${
+                    className={`w-full rounded-lg px-4 py-3 text-base font-bold transition-all duration-200 sm:px-6 sm:text-lg ${
                       gameState.winMethod === 'ron'
                         ? 'bg-amber-500 text-white shadow-lg scale-105 border-2 border-amber-600'
                         : 'bg-emerald-700 text-white hover:bg-emerald-600 border-2 border-emerald-800'
@@ -292,10 +292,10 @@ function App() {
                   </button>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <button
                     onClick={toggleNaki}
-                    className={`flex-1 min-w-[140px] px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                    className={`col-span-2 rounded-lg px-4 py-3 font-medium transition-all duration-200 sm:col-span-1 ${
                       gameState.hasNaki
                         ? 'bg-red-600 text-white shadow-lg border-2 border-red-700'
                         : 'bg-emerald-700 text-white hover:bg-emerald-600 border-2 border-emerald-800'
@@ -305,7 +305,7 @@ function App() {
                   </button>
                   <button
                     onClick={toggleOya}
-                    className={`flex-1 min-w-[100px] px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                    className={`rounded-lg px-4 py-3 font-medium transition-all duration-200 ${
                       gameState.isOya
                         ? 'bg-purple-600 text-white shadow-lg border-2 border-purple-700'
                         : 'bg-emerald-700 text-white hover:bg-emerald-600 border-2 border-emerald-800'
@@ -315,7 +315,7 @@ function App() {
                   </button>
                   <button
                     onClick={resetAll}
-                    className="px-4 py-3 rounded-lg font-medium bg-gray-700 text-white hover:bg-gray-600 transition-all duration-200 border-2 border-gray-800 flex items-center gap-2"
+                    className="col-span-2 flex items-center justify-center gap-2 rounded-lg border-2 border-gray-800 bg-gray-700 px-4 py-3 font-medium text-white transition-all duration-200 hover:bg-gray-600 sm:col-span-1"
                   >
                     <RotateCcw className="w-4 h-4" />
                     リセット
@@ -327,7 +327,7 @@ function App() {
                 {score ? (
                   <ScoreDisplay score={score} winMethod={gameState.winMethod} />
                 ) : (
-                  <div className="bg-emerald-800/50 backdrop-blur-sm rounded-xl p-6 shadow-xl border border-emerald-700 text-center h-full flex flex-col items-center justify-center">
+                  <div className="flex h-full flex-col items-center justify-center rounded-xl border border-emerald-700 bg-emerald-800/50 p-5 text-center shadow-xl backdrop-blur-sm sm:p-6">
                     <Calculator className="w-12 h-12 text-emerald-600 mb-3" />
                     <p className="text-emerald-300 text-sm">
                       役を選択してください
@@ -337,8 +337,8 @@ function App() {
               </div>
             </div>
 
-            <div className="bg-emerald-800/50 backdrop-blur-sm rounded-xl p-6 shadow-xl border border-emerald-700">
-              <h2 className="text-amber-400 text-xl font-bold mb-4 flex items-center gap-2">
+            <div className="rounded-xl border border-emerald-700 bg-emerald-800/50 p-4 shadow-xl backdrop-blur-sm sm:p-6">
+              <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-400 sm:text-xl">
                 <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-sm">S</span>
                 頻出役
               </h2>
@@ -373,8 +373,8 @@ function App() {
               </div>
             </div>
 
-            <div className="bg-emerald-800/50 backdrop-blur-sm rounded-xl p-6 shadow-xl border border-emerald-700">
-              <h2 className="text-amber-400 text-xl font-bold mb-4 flex items-center gap-2">
+            <div className="rounded-xl border border-emerald-700 bg-emerald-800/50 p-4 shadow-xl backdrop-blur-sm sm:p-6">
+              <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-400 sm:text-xl">
                 <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm">A</span>
                 中級役
               </h2>
@@ -392,8 +392,8 @@ function App() {
               </div>
             </div>
 
-            <div className="bg-emerald-800/50 backdrop-blur-sm rounded-xl p-6 shadow-xl border border-emerald-700">
-              <h2 className="text-amber-400 text-xl font-bold mb-4 flex items-center gap-2">
+            <div className="rounded-xl border border-emerald-700 bg-emerald-800/50 p-4 shadow-xl backdrop-blur-sm sm:p-6">
+              <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-400 sm:text-xl">
                 <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm">B</span>
                 上級役
               </h2>
@@ -411,8 +411,8 @@ function App() {
               </div>
             </div>
 
-            <div className="bg-emerald-800/50 backdrop-blur-sm rounded-xl p-6 shadow-xl border border-emerald-700">
-              <h2 className="text-amber-400 text-xl font-bold mb-4 flex items-center gap-2">
+            <div className="rounded-xl border border-emerald-700 bg-emerald-800/50 p-4 shadow-xl backdrop-blur-sm sm:p-6">
+              <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-400 sm:text-xl">
                 <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm">C</span>
                 役満
               </h2>
