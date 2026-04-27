@@ -21,6 +21,7 @@ import { DoraCounter } from './components/DoraCounter';
 import { ModeTabs } from './components/ModeTabs';
 import { ManualScoreForm } from './components/ManualScoreForm';
 import { FuAssistant } from './components/FuAssistant';
+import { AuthButton } from './components/AuthButton';
 
 const YAKUHAI_IDS = new Set([
   'haku',
@@ -387,14 +388,19 @@ function App() {
   return (
     <div className={`min-h-screen ${pageBackgroundClass}`}>
       <div className="container mx-auto max-w-6xl px-3 py-4 sm:px-4 sm:py-6">
-        <header className="mb-6 text-center sm:mb-8">
-          <div className="mb-2 flex items-center justify-center gap-2 sm:gap-3">
-            <Calculator className="h-8 w-8 text-amber-400 sm:h-10 sm:w-10" />
-            <h1 className={`text-3xl font-bold sm:text-4xl md:text-5xl ${containerTextClass}`}>麻雀点数ナビ</h1>
+        <header className="relative mb-6 sm:mb-8">
+          <div className="absolute right-0 top-0 z-10">
+            <AuthButton />
           </div>
-          <p className={`text-sm md:text-base ${headerSubTextClass}`}>
-            役からでも、翻数と符からでも、すぐに点数を確認。
-          </p>
+          <div className="text-center">
+            <div className="mb-2 flex items-center justify-center gap-2 sm:gap-3">
+              <Calculator className="h-8 w-8 text-amber-400 sm:h-10 sm:w-10" />
+              <h1 className={`text-3xl font-bold sm:text-4xl md:text-5xl ${containerTextClass}`}>麻雀点数ナビ</h1>
+            </div>
+            <p className={`text-sm md:text-base ${headerSubTextClass}`}>
+              役からでも、翻数と符からでも、すぐに点数を確認。
+            </p>
+          </div>
         </header>
 
         <ModeTabs activeMode={mode} onChange={setMode} />

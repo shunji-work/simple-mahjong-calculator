@@ -94,7 +94,7 @@ src/
 ## 今後の実装予定
 
 - **Supabase連携**
-  - ユーザー認証機能
+  - ~~ユーザー認証機能~~（実装済: Google OAuth + ゲストサインイン）
   - 計算履歴の保存
   - よく使う役の統計機能
   - ユーザー設定の保存
@@ -113,6 +113,32 @@ src/
   - 鳴き選択時にメンゼン限定役を自動無効化
   - ロン選択時にツモ役を自動除外
   - 選択状態を視覚的にフィードバック
+
+## セットアップ
+
+このアプリは認証に Supabase を使います。初回起動には以下が必要です。
+
+### 1. Supabase プロジェクトを用意
+
+1. https://supabase.com で新規プロジェクトを作成（リージョンは Tokyo `ap-northeast-1` 推奨）
+2. **Authentication → Providers → Google** を有効化
+   - 別途 Google Cloud Console で OAuth クライアント ID を作成し、承認済みリダイレクト URI に Supabase 側で表示される `https://<project-ref>.supabase.co/auth/v1/callback` を登録
+   - 取得した Client ID / Client Secret を Supabase に登録
+3. **Authentication → Providers → Anonymous Sign-Ins** を有効化（ゲスト利用に必要）
+4. **Authentication → URL Configuration** で Site URL に `http://localhost:5173`（および本番 URL）を設定
+
+### 2. 環境変数を設定
+
+`.env.example` を `.env.local` にコピーし、Supabase の **Project Settings → API** から取得した値を入れます。
+
+```bash
+cp .env.example .env.local
+# .env.local を編集
+# VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+# VITE_SUPABASE_ANON_KEY=<anon public key>
+```
+
+`.env.local` は `.gitignore` で除外されているため、コミットされません。
 
 ## 開発
 
