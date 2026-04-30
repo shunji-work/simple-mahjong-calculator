@@ -15,9 +15,20 @@ const supabaseMock = vi.hoisted(() => {
     return { eq };
   });
 
+  // update chain: update().eq().select().single()
+  const updateSelect = vi.fn(() => ({ single }));
+  const updateEq = vi.fn(() => ({ select: updateSelect }));
+  const update = vi.fn(() => ({ eq: updateEq }));
+
+  // delete chain: delete().eq()  -> resolves directly
+  const deleteEq = vi.fn();
+  const del = vi.fn(() => ({ eq: deleteEq }));
+
   const from = vi.fn(() => ({
     insert,
     select,
+    update,
+    delete: del,
   }));
 
   return {
@@ -30,6 +41,11 @@ const supabaseMock = vi.hoisted(() => {
     eq,
     order,
     limit,
+    update,
+    updateEq,
+    updateSelect,
+    delete: del,
+    deleteEq,
   };
 });
 
@@ -37,7 +53,7 @@ vi.mock('./supabaseClient', () => ({
   supabase: supabaseMock.supabase,
 }));
 
-import { insertGame, isStarGame, listRecentGames } from './games';
+import { deleteGame, insertGame, isStarGame, listRecentGames, updateGame } from './games';
 
 const COLUMNS = 'id, user_id, played_at, ruleset, score, rank, genre, memo, created_at';
 
@@ -142,6 +158,89 @@ describe('insertGame', () => {
         genre: 'free_1',
       }),
     ).rejects.toMatchObject({ message: 'permission denied' });
+  });
+});
+
+describe('updateGame', () => {
+  it('updates by id with snake_case columns and returns camelCase record', async () => {
+    supabaseMock.single.mockResolvedValueOnce({
+      data: {
+        id: 'game-1',
+        user_id: 'user-1',
+        played_at: '2026-04-30T13:00:00Z',
+        ruleset: '4ma',
+        score: 41000,
+        rank: 1,
+        genre: 'free_1',
+        memo: 'edited',
+        created_at: '2026-04-30T12:00:01Z',
+      },
+      error: null,
+    });
+
+    const record = await updateGame({
+      id: 'game-1',
+      playedAt: '2026-04-30T13:00:00Z',
+      ruleset: '4ma',
+      score: 41000,
+      rank: 1,
+      genre: 'free_1',
+      memo: 'edited',
+    });
+
+    expect(supabaseMock.supabase.from).toHaveBeenCalledWith('games');
+    expect(supabaseMock.update).toHaveBeenCalledWith({
+      played_at: '2026-04-30T13:00:00Z',
+      ruleset: '4ma',
+      score: 41000,
+      rank: 1,
+      genre: 'free_1',
+      memo: 'edited',
+    });
+    expect(supabaseMock.updateEq).toHaveBeenCalledWith('id', 'game-1');
+    expect(supabaseMock.updateSelect).toHaveBeenCalledWith(COLUMNS);
+    expect(record.id).toBe('game-1');
+    expect(record.score).toBe(41000);
+  });
+
+  it('throws when supabase returns an error', async () => {
+    supabaseMock.single.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'permission denied' },
+    });
+
+    await expect(
+      updateGame({
+        id: 'game-x',
+        playedAt: '2026-04-30T13:00:00Z',
+        ruleset: '4ma',
+        score: 25000,
+        rank: 3,
+        genre: 'free_5',
+      }),
+    ).rejects.toMatchObject({ message: 'permission denied' });
+  });
+});
+
+describe('deleteGame', () => {
+  it('deletes by id', async () => {
+    supabaseMock.deleteEq.mockResolvedValueOnce({ error: null });
+
+    await deleteGame('game-1');
+
+    expect(supabaseMock.supabase.from).toHaveBeenCalledWith('games');
+    expect(supabaseMock.delete).toHaveBeenCalled();
+    expect(supabaseMock.deleteEq).toHaveBeenCalledWith('id', 'game-1');
+  });
+
+  it('throws when supabase returns an error', async () => {
+    supabaseMock.deleteEq.mockResolvedValueOnce({
+      error: { message: 'permission denied' },
+    });
+
+    await expect(deleteGame('game-1')).rejects.toMatchObject({
+      message: 'permission denied',
+    });
   });
 });
 

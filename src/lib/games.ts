@@ -49,6 +49,43 @@ export async function insertGame(input: NewGameInput): Promise<GameRecord> {
   return rowToRecord(data as GameRow);
 }
 
+export interface UpdateGameInput {
+  id: string;
+  playedAt: string;
+  ruleset: NewGameInput['ruleset'];
+  score: number;
+  rank: number;
+  genre: NewGameInput['genre'];
+  memo?: string | null;
+}
+
+export async function updateGame(input: UpdateGameInput): Promise<GameRecord> {
+  const { data, error } = await supabase
+    .from('games')
+    .update({
+      played_at: input.playedAt,
+      ruleset: input.ruleset,
+      score: input.score,
+      rank: input.rank,
+      genre: input.genre,
+      memo: input.memo ?? null,
+    })
+    .eq('id', input.id)
+    .select(
+      'id, user_id, played_at, ruleset, score, rank, genre, memo, created_at',
+    )
+    .single();
+
+  if (error) throw error;
+  if (!data) throw new Error('対局の更新に失敗しました');
+  return rowToRecord(data as GameRow);
+}
+
+export async function deleteGame(id: string): Promise<void> {
+  const { error } = await supabase.from('games').delete().eq('id', id);
+  if (error) throw error;
+}
+
 /**
  * トップ（1位）かつ高得点を達成した対局を判定する。
  * 4麻: 50000点以上、3麻: 70000点以上のトップ。

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { useAuth } from '../contexts/useAuth';
-import { insertGame } from '../lib/games';
+import { insertGame, updateGame } from '../lib/games';
 import {
   GameRecord,
   RULESET_OPTIONS,
@@ -16,6 +16,8 @@ interface Props {
   onClose: () => void;
   onSaved: (record: GameRecord) => void;
   onRequestLogin: () => void;
+  /** 指定すると編集モードで開く */
+  editing?: GameRecord | null;
 }
 
 function nowAsLocalInput(): string {
@@ -28,8 +30,16 @@ function localInputToIso(value: string): string {
   return new Date(value).toISOString();
 }
 
-export function GameRecordDialog({ open, onClose, onSaved, onRequestLogin }: Props) {
+function isoToLocalInput(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return nowAsLocalInput();
+  const tz = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tz).toISOString().slice(0, 16);
+}
+
+export function GameRecordDialog({ open, onClose, onSaved, onRequestLogin, editing }: Props) {
   const { user, isAnonymous } = useAuth();
+  const isEditing = editing != null;
 
   const [ruleset, setRuleset] = useState<Ruleset>('4ma');
   const [score, setScore] = useState<string>('');
@@ -48,15 +58,24 @@ export function GameRecordDialog({ open, onClose, onSaved, onRequestLogin }: Pro
 
   useEffect(() => {
     if (!open) return;
-    setRuleset('4ma');
-    setScore('');
-    setRank(null);
-    setGenre('free_5');
-    setPlayedAtLocal(nowAsLocalInput());
-    setMemo('');
+    if (editing) {
+      setRuleset(editing.ruleset);
+      setScore(String(editing.score));
+      setRank(editing.rank);
+      setGenre(editing.genre);
+      setPlayedAtLocal(isoToLocalInput(editing.playedAt));
+      setMemo(editing.memo ?? '');
+    } else {
+      setRuleset('4ma');
+      setScore('');
+      setRank(null);
+      setGenre('free_5');
+      setPlayedAtLocal(nowAsLocalInput());
+      setMemo('');
+    }
     setSubmitting(false);
     setError(null);
-  }, [open]);
+  }, [open, editing]);
 
   useEffect(() => {
     if (rank != null && rank > maxRank) {
@@ -107,15 +126,25 @@ export function GameRecordDialog({ open, onClose, onSaved, onRequestLogin }: Pro
 
     setSubmitting(true);
     try {
-      const record = await insertGame({
-        userId: user.id,
-        playedAt: localInputToIso(playedAtLocal),
-        ruleset,
-        score: scoreNum,
-        rank,
-        genre,
-        memo: memo.trim() || null,
-      });
+      const record = isEditing
+        ? await updateGame({
+            id: editing.id,
+            playedAt: localInputToIso(playedAtLocal),
+            ruleset,
+            score: scoreNum,
+            rank,
+            genre,
+            memo: memo.trim() || null,
+          })
+        : await insertGame({
+            userId: user.id,
+            playedAt: localInputToIso(playedAtLocal),
+            ruleset,
+            score: scoreNum,
+            rank,
+            genre,
+            memo: memo.trim() || null,
+          });
       onSaved(record);
       onClose();
     } catch (err) {
@@ -147,7 +176,7 @@ export function GameRecordDialog({ open, onClose, onSaved, onRequestLogin }: Pro
         </button>
 
         <h2 id="game-record-dialog-title" className="text-lg font-bold text-white">
-          対局を記録
+          {isEditing ? '対局を編集' : '対局を記録'}
         </h2>
 
         {!user ? (
@@ -295,7 +324,7 @@ export function GameRecordDialog({ open, onClose, onSaved, onRequestLogin }: Pro
               disabled={submitting}
               className="w-full rounded-lg border border-amber-400/40 bg-amber-500/20 px-4 py-3 font-bold text-amber-100 transition hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {submitting ? '保存中…' : 'この対局を保存'}
+              {submitting ? '保存中…' : isEditing ? '変更を保存' : 'この対局を保存'}
             </button>
           </form>
         )}

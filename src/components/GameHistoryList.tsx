@@ -1,9 +1,13 @@
+import { Pencil, Trash2 } from 'lucide-react';
 import { GameRecord, GENRE_LABEL, RULESET_LABEL } from '../types/game';
 
 interface Props {
   games: GameRecord[];
   loading: boolean;
   error: string | null;
+  onEdit?: (game: GameRecord) => void;
+  onDelete?: (game: GameRecord) => void;
+  deletingId?: string | null;
 }
 
 function formatPlayedAt(iso: string): string {
@@ -28,7 +32,7 @@ function rankClass(rank: number): string {
   return 'border-red-300/40 bg-red-300/10 text-red-100';
 }
 
-export function GameHistoryList({ games, loading, error }: Props) {
+export function GameHistoryList({ games, loading, error, onEdit, onDelete, deletingId }: Props) {
   if (loading) {
     return (
       <div className="rounded-xl border border-white/10 bg-slate-900/40 p-6 text-center text-sm text-white/60">
@@ -82,6 +86,31 @@ export function GameHistoryList({ games, loading, error }: Props) {
             <span className="ml-auto font-mono text-base font-bold text-amber-200">
               {formatScore(g.score)}
             </span>
+            {(onEdit || onDelete) && (
+              <div className="flex items-center gap-1">
+                {onEdit && (
+                  <button
+                    type="button"
+                    onClick={() => onEdit(g)}
+                    aria-label="編集"
+                    className="rounded-md p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(g)}
+                    aria-label="削除"
+                    disabled={deletingId === g.id}
+                    className="rounded-md p-1.5 text-white/60 transition hover:bg-red-500/20 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           {g.memo && (
             <p className="mt-2 break-words text-xs text-white/60">{g.memo}</p>
