@@ -6,6 +6,7 @@ import type { GameRecord } from '../types/game';
 import { AuthDialog } from './AuthDialog';
 import { GameHistoryList } from './GameHistoryList';
 import { GameRecordDialog } from './GameRecordDialog';
+import { RecordsChart } from './RecordsChart';
 
 const HISTORY_LIMIT = 30;
 
@@ -83,6 +84,8 @@ export function RecordsView() {
           対局を記録
         </button>
       </div>
+
+      {games.length > 0 && <RecordsChart games={games} />}
 
       <GameHistoryList games={games} loading={loading} error={error} />
 

@@ -37,7 +37,7 @@ vi.mock('./supabaseClient', () => ({
   supabase: supabaseMock.supabase,
 }));
 
-import { insertGame, listRecentGames } from './games';
+import { insertGame, isStarGame, listRecentGames } from './games';
 
 const COLUMNS = 'id, user_id, played_at, ruleset, score, rank, genre, memo, created_at';
 
@@ -142,6 +142,32 @@ describe('insertGame', () => {
         genre: 'free_1',
       }),
     ).rejects.toMatchObject({ message: 'permission denied' });
+  });
+});
+
+describe('isStarGame', () => {
+  it('returns true for 4ma top with score >= 50000', () => {
+    expect(isStarGame({ ruleset: '4ma', rank: 1, score: 50000 })).toBe(true);
+    expect(isStarGame({ ruleset: '4ma', rank: 1, score: 62300 })).toBe(true);
+  });
+
+  it('returns false for 4ma top below 50000', () => {
+    expect(isStarGame({ ruleset: '4ma', rank: 1, score: 49900 })).toBe(false);
+    expect(isStarGame({ ruleset: '4ma', rank: 1, score: 32000 })).toBe(false);
+  });
+
+  it('returns true for 3ma top with score >= 70000', () => {
+    expect(isStarGame({ ruleset: '3ma', rank: 1, score: 70000 })).toBe(true);
+    expect(isStarGame({ ruleset: '3ma', rank: 1, score: 90000 })).toBe(true);
+  });
+
+  it('returns false for 3ma top below 70000', () => {
+    expect(isStarGame({ ruleset: '3ma', rank: 1, score: 69900 })).toBe(false);
+  });
+
+  it('returns false when rank is not 1', () => {
+    expect(isStarGame({ ruleset: '4ma', rank: 2, score: 60000 })).toBe(false);
+    expect(isStarGame({ ruleset: '3ma', rank: 2, score: 80000 })).toBe(false);
   });
 });
 

@@ -49,6 +49,17 @@ export async function insertGame(input: NewGameInput): Promise<GameRecord> {
   return rowToRecord(data as GameRow);
 }
 
+/**
+ * トップ（1位）かつ高得点を達成した対局を判定する。
+ * 4麻: 50000点以上、3麻: 70000点以上のトップ。
+ * グラフ上で★マークを表示する条件として使う。
+ */
+export function isStarGame(game: Pick<GameRecord, 'rank' | 'score' | 'ruleset'>): boolean {
+  if (game.rank !== 1) return false;
+  const threshold = game.ruleset === '4ma' ? 50000 : 70000;
+  return game.score >= threshold;
+}
+
 export async function listRecentGames(
   userId: string,
   limit = 30,
