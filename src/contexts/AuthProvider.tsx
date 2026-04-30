@@ -40,8 +40,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         if (error) throw error;
       },
-      signInAnonymously: async () => {
-        const { error } = await supabase.auth.signInAnonymously();
+      signInAnonymously: async (captchaToken?: string) => {
+        const { error } = await supabase.auth.signInAnonymously(
+          captchaToken ? { options: { captchaToken } } : undefined,
+        );
         if (error) throw error;
       },
       signOut: async () => {

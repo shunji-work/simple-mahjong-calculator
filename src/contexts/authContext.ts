@@ -7,7 +7,7 @@ export type AuthContextValue = {
   loading: boolean;
   isAnonymous: boolean;
   signInWithGoogle: () => Promise<void>;
-  signInAnonymously: () => Promise<void>;
+  signInAnonymously: (captchaToken?: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 

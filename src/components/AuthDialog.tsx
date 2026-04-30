@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { useAuth } from '../contexts/useAuth';
 
 type Props = {
@@ -7,10 +8,16 @@ type Props = {
   onClose: () => void;
 };
 
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as
+  | string
+  | undefined;
+
 export function AuthDialog({ open, onClose }: Props) {
   const { signInWithGoogle, signInAnonymously } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -25,6 +32,7 @@ export function AuthDialog({ open, onClose }: Props) {
     if (open) {
       setError(null);
       setSubmitting(false);
+      setCaptchaToken(null);
     }
   }, [open]);
 
@@ -43,11 +51,18 @@ export function AuthDialog({ open, onClose }: Props) {
 
   const handleGuest = async () => {
     setError(null);
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setError('Bot 対策の確認が完了するまで少しお待ちください。');
+      return;
+    }
     setSubmitting(true);
     try {
-      await signInAnonymously();
+      await signInAnonymously(captchaToken ?? undefined);
       onClose();
     } catch (e) {
+      // 失敗時はトークンを使い切っているのでリセット
+      turnstileRef.current?.reset();
+      setCaptchaToken(null);
       setError(e instanceof Error ? e.message : 'ゲストサインインに失敗しました');
     } finally {
       setSubmitting(false);
@@ -98,10 +113,23 @@ export function AuthDialog({ open, onClose }: Props) {
           <div className="h-px flex-1 bg-white/15" />
         </div>
 
+        {TURNSTILE_SITE_KEY && (
+          <div className="mb-3 flex justify-center">
+            <Turnstile
+              ref={turnstileRef}
+              siteKey={TURNSTILE_SITE_KEY}
+              options={{ theme: 'dark', size: 'flexible' }}
+              onSuccess={(token) => setCaptchaToken(token)}
+              onExpire={() => setCaptchaToken(null)}
+              onError={() => setCaptchaToken(null)}
+            />
+          </div>
+        )}
+
         <button
           type="button"
           onClick={handleGuest}
-          disabled={submitting}
+          disabled={submitting || (Boolean(TURNSTILE_SITE_KEY) && !captchaToken)}
           className="w-full rounded-lg border border-amber-400/40 bg-amber-500/10 px-4 py-3 font-medium text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
         >
           ゲストとして使う
