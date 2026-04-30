@@ -22,6 +22,8 @@ import { ModeTabs } from './components/ModeTabs';
 import { ManualScoreForm } from './components/ManualScoreForm';
 import { FuAssistant } from './components/FuAssistant';
 import { AuthButton } from './components/AuthButton';
+import { TopTabs, type TopTab } from './components/TopTabs';
+import { RecordsView } from './components/RecordsView';
 
 const YAKUHAI_IDS = new Set([
   'haku',
@@ -180,6 +182,7 @@ function EmptyScoreCard({ mode }: { mode: AppMode }) {
 }
 
 function App() {
+  const [topTab, setTopTab] = useState<TopTab>('calc');
   const [mode, setMode] = useState<AppMode>('yaku');
   const [gameState, setGameState] = useState<GameState>(DEFAULT_GAME_STATE);
   const [manualState, setManualState] = useState<ManualState>(DEFAULT_MANUAL_STATE);
@@ -378,12 +381,24 @@ function App() {
   const currentScore = mode === 'manual' ? manualScore : yakuScore;
   const currentWinMethod = mode === 'manual' ? manualState.winMethod : gameState.winMethod;
   const pageBackgroundClass =
-    mode === 'manual'
-      ? 'bg-gradient-to-br from-[#2D71E2] via-[#245fc2] to-[#1d4fa1]'
-      : 'bg-gradient-to-br from-emerald-950 via-emerald-900 to-green-950';
+    topTab === 'records'
+      ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950'
+      : mode === 'manual'
+        ? 'bg-gradient-to-br from-[#2D71E2] via-[#245fc2] to-[#1d4fa1]'
+        : 'bg-gradient-to-br from-emerald-950 via-emerald-900 to-green-950';
   const containerTextClass = mode === 'manual' ? 'text-white' : 'text-white';
-  const headerSubTextClass = mode === 'manual' ? 'text-blue-100/90' : 'text-emerald-200';
-  const footerTextClass = mode === 'manual' ? 'text-blue-100/80' : 'text-emerald-300';
+  const headerSubTextClass =
+    topTab === 'records'
+      ? 'text-white/70'
+      : mode === 'manual'
+        ? 'text-blue-100/90'
+        : 'text-emerald-200';
+  const footerTextClass =
+    topTab === 'records'
+      ? 'text-white/60'
+      : mode === 'manual'
+        ? 'text-blue-100/80'
+        : 'text-emerald-300';
 
   return (
     <div className={`min-h-screen ${pageBackgroundClass}`}>
@@ -403,6 +418,12 @@ function App() {
           </div>
         </header>
 
+        <TopTabs active={topTab} onChange={setTopTab} />
+
+        {topTab === 'records' ? (
+          <RecordsView />
+        ) : (
+        <>
         <ModeTabs activeMode={mode} onChange={setMode} />
 
         <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
@@ -706,6 +727,8 @@ function App() {
             </div>
           </div>
         </div>
+        </>
+        )}
 
         <footer className={`mt-12 text-center text-sm ${footerTextClass}`}>
           <p>初心者向け麻雀点数計算ツール</p>

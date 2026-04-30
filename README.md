@@ -95,9 +95,10 @@ src/
 
 - **Supabase連携**
   - ~~ユーザー認証機能~~（実装済: Google OAuth + ゲストサインイン）
-  - 計算履歴の保存
+  - ~~対局結果の記録（点数・順位・ジャンル）と履歴一覧~~（実装済: Phase 1）
+  - 直近 5 / 10 / 30 戦の折れ線グラフ + 高得点トップに ★ マーク（Phase 2 予定）
+  - ジャンルフィルタ（フリー5 / フリー1 / フリー総合 / 友人）（Phase 3 予定）
   - よく使う役の統計機能
-  - ユーザー設定の保存
 
 - **追加機能**
   - 点数計算の履歴表示
@@ -139,6 +140,52 @@ cp .env.example .env.local
 ```
 
 `.env.local` は `.gitignore` で除外されているため、コミットされません。
+
+### 3. 対局記録テーブルを作成
+
+戦績タブで対局を保存するために、Supabase 側に `games` テーブルと RLS ポリシーを作成します。
+
+**手順**: Supabase Dashboard → 左サイドバー **「SQL Editor」** → **「+ New query」** → 下記 SQL を貼り付けて **「Run」**
+
+```sql
+create table public.games (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  played_at   timestamptz not null default now(),
+  ruleset     text not null check (ruleset in ('4ma','3ma')),
+  score       integer not null,
+  rank        smallint not null check (rank between 1 and 4),
+  genre       text not null check (genre in ('free_5','free_1','friend')),
+  memo        text,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.games
+  add constraint games_rank_matches_ruleset
+  check (
+    (ruleset = '4ma' and rank between 1 and 4) or
+    (ruleset = '3ma' and rank between 1 and 3)
+  );
+
+create index games_user_played_at_idx
+  on public.games (user_id, played_at desc);
+
+alter table public.games enable row level security;
+
+create policy "games_select_own" on public.games
+  for select using (auth.uid() = user_id);
+
+create policy "games_insert_own" on public.games
+  for insert with check (auth.uid() = user_id);
+
+create policy "games_update_own" on public.games
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "games_delete_own" on public.games
+  for delete using (auth.uid() = user_id);
+```
+
+`Success. No rows returned` と出れば完了です。Table Editor に `public.games`（4 RLS policies 付き）が見えていることを確認してください。
 
 ## 開発
 
