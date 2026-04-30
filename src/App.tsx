@@ -407,10 +407,10 @@ function App() {
           <div className="absolute right-0 top-0 z-10">
             <AuthButton />
           </div>
-          <div className="text-center">
-            <div className="mb-2 flex items-center justify-center gap-2 sm:gap-3">
+          <div className="pr-28 text-left sm:pr-0 sm:text-center">
+            <div className="mb-2 flex items-center justify-start gap-2 sm:justify-center sm:gap-3">
               <Calculator className="h-8 w-8 text-amber-400 sm:h-10 sm:w-10" />
-              <h1 className={`text-3xl font-bold sm:text-4xl md:text-5xl ${containerTextClass}`}>麻雀点数ナビ</h1>
+              <h1 className={`text-2xl font-bold sm:text-4xl md:text-5xl ${containerTextClass}`}>麻雀点数ナビ</h1>
             </div>
             <p className={`text-sm md:text-base ${headerSubTextClass}`}>
               役からでも、翻数と符からでも、すぐに点数を確認。
