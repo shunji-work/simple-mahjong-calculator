@@ -1,151 +1,167 @@
-# 麻雀かんたん計算機
+# 麻雀点数ナビ
 
-初心者向けの麻雀点数計算ツールです。役をボタンで選ぶだけで、符計算を自動化し、点数を瞬時に表示します。
+初心者向けの麻雀点数計算・対局記録アプリです。
 
-## 主な特徴
+役を選ぶだけで点数を確認できる「役から計算」モードに加えて、翻数・符を直接入力する「翻符入力」モード、符が分からないときの「符計算補助」、ログイン後に対局結果を保存・可視化できる「戦績」機能を備えています。
 
-- **符計算の自動判定**: ユーザーに符を聞かず、あがり方と役の組み合わせから自動で符を決定
-- **出る順UI**: 出現頻度の高い役（リーチ、タンヤオ等）を上位に配置
-- **直感的なスコア表示**: ツモ時の支払い内訳（親・子）を即座に提示
-- **メンゼン限定役の自動無効化**: 鳴きありを選択時、メンゼン限定役が自動で無効化
-- **レスポンシブ対応**: モバイルからデスクトップまで最適表示
+## 主な機能
+
+- **役から点数計算**: 役、ドラ、ツモ/ロン、親/子、鳴き有無を選ぶと点数を自動計算
+- **翻符入力モード**: 翻数・符を直接指定して点数を計算
+- **符計算補助**: 待ち、雀頭、刻子・槓子、門前ロン、ツモ符などから符を補助計算
+- **役の自動制御**: 鳴きあり時のメンゼン限定役無効化、ロン時のツモ役除外、同時成立しにくい役の整理
+- **満貫以上の判定**: 満貫、跳満、倍満、三倍満、役満を固定点として表示
+- **対局記録**: 4麻/3麻、素点、順位、ジャンル、メモ、対局日時を保存
+- **戦績グラフ**: 直近 5 / 10 / 30 戦のスコア推移を表示
+- **ジャンルフィルタ**: フリー5、フリー1、フリー総合、友人で履歴を絞り込み
+- **高得点トップ表示**: 4麻 50,000点以上、3麻 70,000点以上のトップに ★ を表示
+- **認証**: Supabase の Google OAuth と匿名ゲストログインに対応
+- **Bot対策**: Cloudflare Turnstile を任意で利用可能
+- **PWA基盤**: Web App Manifest と Service Worker 登録に対応
 
 ## 技術スタック
 
 ### フロントエンド
-- **React 18.3.1**: コンポーネントベースのUI構築
-- **TypeScript 5.5.3**: 型安全な開発
-- **Vite 5.4.2**: 高速なビルドツール
-- **Tailwind CSS 3.4.1**: ユーティリティファーストのCSS
-- **Lucide React 0.344.0**: モダンなアイコンライブラリ
 
-### バックエンド（将来実装予定）
-- **Supabase 2.57.4**: 認証、データベース、ストレージ
+- React 18.3.1
+- TypeScript 5.5.3
+- Vite 5.4.2
+- Tailwind CSS 3.4.1
+- Lucide React
+- Recharts
 
-### 開発ツール
-- **ESLint**: コード品質の維持
-- **PostCSS**: CSS処理
-- **Autoprefixer**: ブラウザ対応の自動化
+### バックエンド / 外部サービス
 
-## プロジェクト構造
+- Supabase
+  - Authentication
+  - Database
+  - Row Level Security
+- Cloudflare Turnstile
 
-```
+### テスト / 開発ツール
+
+- Vitest
+- Playwright
+- ESLint
+- PostCSS / Autoprefixer
+
+## プロジェクト構成
+
+```text
 src/
-├── components/          # UIコンポーネント
-│   ├── YakuButton.tsx   # 役選択ボタン
-│   └── ScoreDisplay.tsx # 点数表示
-├── data/                # マスターデータ
-│   └── yaku.ts          # 役の定義とカテゴリ分け
-├── types/               # TypeScript型定義
-│   └── mahjong.ts       # 麻雀関連の型
-├── utils/               # ユーティリティ
-│   └── scoreCalculator.ts # 点数計算ロジック
-├── App.tsx              # メインアプリケーション
-├── main.tsx             # エントリーポイント
-└── index.css            # グローバルスタイル
-```
+├── components/              # UIコンポーネント
+│   ├── AuthDialog.tsx        # ログインダイアログ
+│   ├── FuAssistant.tsx       # 符計算補助
+│   ├── GameRecordDialog.tsx  # 対局記録の作成・編集
+│   ├── RecordsChart.tsx      # 戦績グラフ
+│   ├── RecordsView.tsx       # 戦績タブ
+│   ├── ScoreDisplay.tsx      # 点数表示
+│   └── YakuButton.tsx        # 役選択ボタン
+├── contexts/                 # 認証コンテキスト
+├── data/
+│   └── yaku.ts               # 役マスタ
+├── lib/
+│   ├── games.ts              # Supabaseの対局記録CRUD
+│   └── supabaseClient.ts     # Supabaseクライアント
+├── types/                    # 型定義
+├── utils/
+│   └── scoreCalculator.ts    # 点数・符計算ロジック
+├── App.tsx                   # アプリ本体
+└── main.tsx                  # エントリーポイント
 
-## サイトマップ
-
-```
-麻雀かんたん計算機
-│
-├── ヘッダー
-│   └── タイトルとロゴ
-│
-├── メインコンテンツ
-│   ├── 左側（役選択エリア）
-│   │   ├── あがり方選択（ツモ/ロン）
-│   │   ├── 状態選択（鳴き有無/親子/リセット）
-│   │   ├── 頻出役（Sランク）
-│   │   ├── 中級役（Aランク）
-│   │   ├── 上級役（Bランク）
-│   │   └── 役満（Cランク）
-│   │
-│   └── 右側（スコア表示エリア）
-│       ├── 点数表示
-│       │   ├── 役名・翻数・符数
-│       │   ├── ツモ時の支払い内訳
-│       │   └── 合計獲得点
-│       └── 選択中の役一覧
-│
-└── フッター
-    └── 説明文
+tests/
+└── e2e/
+    └── score-calculator.spec.ts
 ```
 
 ## 点数計算ロジック
 
-### 符の自動判定
-1. 七対子を選択 → 25符
-2. 平和+ツモを同時に選択 → 20符
-3. 鳴きなし+ロンを選択 → 40符
-4. その他 → 30符
+### 役選択モード
 
-### 役のカテゴリ
-- **Sランク（頻出役）**: リーチ、タンヤオ、平和、ツモ、役牌、ドラ
-- **Aランク（中級役）**: 一盃口、七対子、対々和、三色同順、一気通貫
-- **Bランク（上級役）**: 混一色、純全帯、清一色
-- **Cランク（役満）**: 役満一括
+役選択モードでは、選択された役の翻数、ドラ、鳴きによる食い下がり、門前ツモの自動加算、大三元の役満判定などをまとめて処理します。
 
-### スコア算出
-- 1〜4翻: 判定された符と翻数に基づき点数表から取得
-- 5翻以上: 符に関係なく固定点（満貫以上）を表示
+符は初心者向けの簡易判定として以下を使います。
 
-## 今後の実装予定
+1. 七対子を選択: 25符
+2. 平和 + ツモ: 20符
+3. 平和 + ロン: 30符
+4. 鳴きなし + ロン: 40符
+5. その他: 30符
 
-- **Supabase連携**
-  - ~~ユーザー認証機能~~（実装済: Google OAuth + ゲストサインイン）
-  - ~~対局結果の記録（点数・順位・ジャンル）と履歴一覧~~（実装済: Phase 1）
-  - 直近 5 / 10 / 30 戦の折れ線グラフ + 高得点トップに ★ マーク（Phase 2 予定）
-  - ジャンルフィルタ（フリー5 / フリー1 / フリー総合 / 友人）（Phase 3 予定）
-  - よく使う役の統計機能
+### 翻符入力モード
 
-- **追加機能**
-  - 点数計算の履歴表示
-  - カスタム役の追加
-  - オフラインモード対応
-  - PWA化
+翻数と符を直接指定して点数を計算します。符が分からない場合は、下段の符計算補助で算出した符を自動反映できます。
 
-## デザインコンセプト
+符計算補助では以下を扱います。
 
-- **麻雀卓の緑**: 深い緑色（#1a5928、#2d7c3d）を基調とした背景
-- **視認性の高いデジタル文字**: 点数を明確に表示するモダンなフォント
-- **インタラクティブな挙動**:
-  - 鳴き選択時にメンゼン限定役を自動無効化
-  - ロン選択時にツモ役を自動除外
-  - 選択状態を視覚的にフィードバック
+- 基本符 20符
+- ツモ 2符
+- 門前ロン 10符
+- 単騎 / ペンチャン / カンチャン 2符
+- 役牌雀頭 2符
+- 么九牌・字牌 / 中張牌の刻子・槓子
+- 平和、七対子の固定符
+- 面子数の上限チェック
+- 4翻以上では補助UIを停止
+
+## 戦績機能
+
+ログイン後、対局結果を `games` テーブルに保存できます。
+
+保存項目:
+
+- ルール: 4麻 / 3麻
+- 最終素点
+- 順位
+- ジャンル: フリー5 / フリー1 / 友人
+- 対局日時
+- メモ
+
+表示機能:
+
+- 直近30件の履歴
+- 編集 / 削除
+- ジャンルフィルタ
+- 直近 5 / 10 / 30 戦の折れ線グラフ
+- 高得点トップの ★ 表示
 
 ## セットアップ
 
-このアプリは認証に Supabase を使います。初回起動には以下が必要です。
+### 1. 依存関係をインストール
 
-### 1. Supabase プロジェクトを用意
-
-1. https://supabase.com で新規プロジェクトを作成（リージョンは Tokyo `ap-northeast-1` 推奨）
-2. **Authentication → Providers → Google** を有効化
-   - 別途 Google Cloud Console で OAuth クライアント ID を作成し、承認済みリダイレクト URI に Supabase 側で表示される `https://<project-ref>.supabase.co/auth/v1/callback` を登録
-   - 取得した Client ID / Client Secret を Supabase に登録
-3. **Authentication → Providers → Anonymous Sign-Ins** を有効化（ゲスト利用に必要）
-4. **Authentication → URL Configuration** で Site URL に `http://localhost:5173`（および本番 URL）を設定
+```bash
+npm install
+```
 
 ### 2. 環境変数を設定
 
-`.env.example` を `.env.local` にコピーし、Supabase の **Project Settings → API** から取得した値を入れます。
+`.env.example` を `.env.local` にコピーし、Supabase の値を設定します。
 
 ```bash
 cp .env.example .env.local
-# .env.local を編集
-# VITE_SUPABASE_URL=https://<project-ref>.supabase.co
-# VITE_SUPABASE_ANON_KEY=<anon public key>
 ```
 
-`.env.local` は `.gitignore` で除外されているため、コミットされません。
+```env
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon public key>
 
-### 3. 対局記録テーブルを作成
+# Cloudflare Turnstile site key
+# 本番では設定推奨。ローカルでは未設定でもゲストログインUIは動作します。
+VITE_TURNSTILE_SITE_KEY=
+```
 
-戦績タブで対局を保存するために、Supabase 側に `games` テーブルと RLS ポリシーを作成します。
+### 3. Supabase認証を設定
 
-**手順**: Supabase Dashboard → 左サイドバー **「SQL Editor」** → **「+ New query」** → 下記 SQL を貼り付けて **「Run」**
+Supabase Dashboard で以下を設定します。
+
+- Authentication Providers で Google を有効化
+- Anonymous Sign-Ins を有効化
+- URL Configuration の Site URL に `http://localhost:5173` と本番URLを設定
+- Google OAuth のリダイレクトURIに Supabase の callback URL を登録
+
+### 4. 対局記録テーブルを作成
+
+Supabase Dashboard の SQL Editor で以下を実行します。
 
 ```sql
 create table public.games (
@@ -185,21 +201,44 @@ create policy "games_delete_own" on public.games
   for delete using (auth.uid() = user_id);
 ```
 
-`Success. No rows returned` と出れば完了です。Table Editor に `public.games`（4 RLS policies 付き）が見えていることを確認してください。
-
-## 開発
+## 開発コマンド
 
 ```bash
-npm install
 npm run dev
-```
-
-## ビルド
-
-```bash
 npm run build
 npm run preview
+npm run lint
+npm run typecheck
+npm run test
+npm run test:e2e
 ```
+
+## テスト方針
+
+- `src/utils/scoreCalculator.test.ts`
+  - 翻符からの点数計算
+  - 満貫以上の判定
+  - 符計算補助
+  - 食い下がり
+  - 大三元の役満判定
+
+- `src/lib/games.test.ts`
+  - Supabase CRUD の呼び出し
+  - snake_case / camelCase 変換
+  - エラー処理
+  - ★ 表示条件
+
+- `tests/e2e/score-calculator.spec.ts`
+  - 役選択モードの主要操作
+  - 翻符入力モード
+  - 符計算補助
+  - モード切替時の状態保持
+
+## 現在の制限
+
+- Supabase環境変数が未設定の場合、アプリ起動時にエラーになります。
+- Service Worker は登録されていますが、オフライン用のキャッシュ戦略はまだ実装していません。
+- 役選択モードの符は初心者向けの簡易判定です。細かい符計算は翻符入力モードの符計算補助で扱います。
 
 ## ライセンス
 

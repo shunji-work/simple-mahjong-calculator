@@ -12,6 +12,18 @@ const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as
   | string
   | undefined;
 
+function getAuthErrorMessage(error: unknown, fallback: string): string {
+  if (!(error instanceof Error)) {
+    return fallback;
+  }
+
+  if (/failed to fetch|network/i.test(error.message)) {
+    return 'Supabaseに接続できませんでした。.env.local の VITE_SUPABASE_URL と VITE_SUPABASE_ANON_KEY、または本番環境変数を確認してください。';
+  }
+
+  return error.message || fallback;
+}
+
 export function AuthDialog({ open, onClose }: Props) {
   const { signInWithGoogle, signInAnonymously } = useAuth();
   const [submitting, setSubmitting] = useState(false);
@@ -44,7 +56,7 @@ export function AuthDialog({ open, onClose }: Props) {
     try {
       await signInWithGoogle();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Googleログインに失敗しました');
+      setError(getAuthErrorMessage(e, 'Googleログインに失敗しました'));
       setSubmitting(false);
     }
   };
@@ -63,7 +75,7 @@ export function AuthDialog({ open, onClose }: Props) {
       // 失敗時はトークンを使い切っているのでリセット
       turnstileRef.current?.reset();
       setCaptchaToken(null);
-      setError(e instanceof Error ? e.message : 'ゲストサインインに失敗しました');
+      setError(getAuthErrorMessage(e, 'ゲストサインインに失敗しました'));
     } finally {
       setSubmitting(false);
     }
