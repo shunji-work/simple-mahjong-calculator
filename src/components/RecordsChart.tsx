@@ -9,7 +9,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { LineChart as LineChartIcon, Star } from 'lucide-react';
+import { LineChart as LineChartIcon, Sparkles, Star } from 'lucide-react';
+import { generateScoreAdvice } from '../lib/gameAdvice';
 import { isStarGame } from '../lib/games';
 import {
   GameRecord,
@@ -34,6 +35,27 @@ const STAR_THRESHOLD: Record<Ruleset, number> = {
   '4ma': 50000,
   '3ma': 70000,
 };
+
+const ADVICE_STYLE = {
+  positive: {
+    border: 'border-emerald-300/25',
+    bg: 'bg-emerald-400/10',
+    icon: 'text-emerald-200',
+    badge: 'border-emerald-200/25 bg-emerald-300/10 text-emerald-100',
+  },
+  caution: {
+    border: 'border-orange-300/25',
+    bg: 'bg-orange-400/10',
+    icon: 'text-orange-200',
+    badge: 'border-orange-200/25 bg-orange-300/10 text-orange-100',
+  },
+  neutral: {
+    border: 'border-sky-300/25',
+    bg: 'bg-sky-400/10',
+    icon: 'text-sky-200',
+    badge: 'border-sky-200/25 bg-sky-300/10 text-sky-100',
+  },
+} as const;
 
 interface ChartPoint {
   index: number;
@@ -158,6 +180,12 @@ export function RecordsChart({ games }: Props) {
     const pad = 5000;
     return [Math.floor((min - pad) / 5000) * 5000, Math.ceil((max + pad) / 5000) * 5000];
   }, [points, starThreshold]);
+
+  const advice = useMemo(
+    () => generateScoreAdvice(points.map(({ score, rank }) => ({ score, rank })), ruleset),
+    [points, ruleset],
+  );
+  const adviceStyle = ADVICE_STYLE[advice.variant];
 
   return (
     <section className="rounded-2xl border border-white/10 bg-slate-900/50 p-4 shadow-xl sm:p-5">
@@ -291,6 +319,20 @@ export function RecordsChart({ games }: Props) {
             ★ = {RULESET_LABEL[ruleset]}で{(starThreshold / 1000).toFixed(0)}点以上のトップ。
             グラフ左が古く、右が新しい対局です（直近{points.length}件 / 全{totalForRuleset}件）。
           </p>
+          <div className={`mt-3 rounded-lg border ${adviceStyle.border} ${adviceStyle.bg} p-3`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 text-sm font-bold text-white">
+                <Sparkles className={`h-4 w-4 ${adviceStyle.icon}`} />
+                AIひとこと
+              </span>
+              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${adviceStyle.badge}`}>
+                ローカル分析
+              </span>
+              <span className="text-xs font-medium text-white/70">{advice.title}</span>
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-white/85">{advice.message}</p>
+            <p className="mt-1 text-[11px] text-white/55">{advice.detail}</p>
+          </div>
         </>
       )}
     </section>

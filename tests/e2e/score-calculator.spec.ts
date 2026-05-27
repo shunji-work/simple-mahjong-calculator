@@ -1,15 +1,15 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 const visibleText = (text: string) => `*:has-text("${text}"):visible`;
 const visibleParagraph = (text: string) => `p:has-text("${text}"):visible`;
 
-const incrementStepper = async (stepper: any, times: number) => {
+const incrementStepper = async (stepper: Locator, times: number) => {
   for (let i = 0; i < times; i += 1) {
     await stepper.getByRole('button').last().click();
   }
 };
 
-const switchToManualMode = async (page: any) => {
+const switchToManualMode = async (page: Page) => {
   await page.getByTestId('mode-tab-manual').click();
 };
 
