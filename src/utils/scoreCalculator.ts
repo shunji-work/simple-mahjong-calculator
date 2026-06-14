@@ -308,7 +308,9 @@ function resolveLimitName(han: number, fu: number): string | null {
   if (han >= 8) return '倍満';
   if (han >= 6) return '跳満';
   if (han >= 5) return '満貫';
-  if (han === 4 && fu >= 30) return '満貫';
+  const isKiriageMangan = (han === 4 && fu === 30) || (han === 3 && fu === 60);
+  if (isKiriageMangan) return '満貫';
+  if (fu * 2 ** (han + 2) >= 2000) return '満貫';
   return null;
 }
 
@@ -433,6 +435,7 @@ export function calculateScore(gameState: GameState): ScoreResult | null {
     gameState.selectedYaku.includes('haku') &&
     gameState.selectedYaku.includes('hatsu') &&
     gameState.selectedYaku.includes('chun');
+  const hasYakuman = gameState.selectedYaku.includes('yakuman') || hasDaisangen;
 
   const selectedYakuData = gameState.selectedYaku
     .map((id) => YAKU_LIST.find((yaku) => yaku.id === id))
@@ -448,14 +451,14 @@ export function calculateScore(gameState: GameState): ScoreResult | null {
   }
 
   let totalHan = selectedYakuData.reduce((sum, yaku) => sum + (yaku?.han || 0), 0);
-  totalHan += gameState.doraCount;
+  if (hasYakuman) {
+    totalHan = 13;
+  } else {
+    totalHan += gameState.doraCount;
 
-  if (hasAutoTsumo) {
-    totalHan += 1;
-  }
-
-  if (hasDaisangen) {
-    totalHan = Math.max(totalHan, 13);
+    if (hasAutoTsumo) {
+      totalHan += 1;
+    }
   }
 
   if (gameState.hasNaki) {

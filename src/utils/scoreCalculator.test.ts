@@ -84,11 +84,25 @@ describe('calculateScoreFromHanFu', () => {
     });
   });
 
-  it('treats 30符4翻 as mangan', () => {
+  it('treats 30符4翻 as kiriage mangan', () => {
     expect(
       calculateScoreFromHanFu({
         han: 4,
         fu: 30,
+        isOya: false,
+        winMethod: 'ron',
+      }),
+    ).toMatchObject({
+      ronPay: 8000,
+      scoreName: '満貫',
+    });
+  });
+
+  it('treats 60符3翻 as kiriage mangan', () => {
+    expect(
+      calculateScoreFromHanFu({
+        han: 3,
+        fu: 60,
         isOya: false,
         winMethod: 'ron',
       }),
@@ -103,6 +117,20 @@ describe('calculateScoreFromHanFu', () => {
       calculateScoreFromHanFu({
         han: 4,
         fu: 40,
+        isOya: false,
+        winMethod: 'ron',
+      }),
+    ).toMatchObject({
+      ronPay: 8000,
+      scoreName: '満貫',
+    });
+  });
+
+  it('treats 70符3翻 as mangan by base points', () => {
+    expect(
+      calculateScoreFromHanFu({
+        han: 3,
+        fu: 70,
         isOya: false,
         winMethod: 'ron',
       }),
@@ -412,12 +440,30 @@ describe('calculateScore (yaku mode)', () => {
           selectedYaku: ['haku', 'hatsu', 'chun'],
           winMethod: 'ron',
           hasNaki: true,
+          doraCount: 3,
         }),
       ),
     ).toMatchObject({
       totalHan: 13,
       ronPay: 32000,
       scoreName: '大三元（役満）',
+    });
+  });
+
+  it('does not add dora to generic yakuman', () => {
+    expect(
+      calculateScore(
+        buildState({
+          selectedYaku: ['yakuman'],
+          doraCount: 2,
+          winMethod: 'tsumo',
+        }),
+      ),
+    ).toMatchObject({
+      totalHan: 13,
+      oyaPay: 16000,
+      koPay: 8000,
+      scoreName: '役満',
     });
   });
 });

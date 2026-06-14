@@ -146,7 +146,7 @@ test.describe('mahjong score calculator', () => {
     await expect(page.getByText('4翻以上のため補助入力は停止中です。')).toBeVisible();
   });
 
-  test('calculates parent mangan in manual mode', async ({ page }) => {
+  test('calculates parent 4翻30符 as kiriage mangan in manual mode', async ({ page }) => {
     await page.goto('/');
 
     await switchToManualMode(page);
