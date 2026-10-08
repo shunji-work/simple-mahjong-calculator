@@ -1,4 +1,4 @@
-import type { GameRecord, Ruleset } from '../types/game';
+import { ORIGIN_SCORE, type GameRecord, type Ruleset } from '../types/game';
 
 type AdviceVariant = 'positive' | 'caution' | 'neutral';
 
@@ -10,8 +10,6 @@ export interface ScoreAdvice {
 }
 
 type AdviceGame = Pick<GameRecord, 'score' | 'rank'>;
-
-const SCORE_BASELINE = 30000;
 
 const STRONG_MOVE_THRESHOLD: Record<Ruleset, number> = {
   '4ma': 8000,
@@ -145,7 +143,7 @@ export function generateScoreAdvice(records: AdviceGame[], ruleset: Ruleset): Sc
     };
   }
 
-  if (avgScore < SCORE_BASELINE && topRate <= 0.25) {
+  if (avgScore < ORIGIN_SCORE[ruleset] && topRate <= 0.25) {
     return {
       title: '守備を一段早く',
       message: '平均点が原点を下回っています。まずは中盤以降の危険牌を一巡早く止めて、失点幅を削るのが効きそうです。',

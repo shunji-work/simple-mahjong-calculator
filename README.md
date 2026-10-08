@@ -17,7 +17,7 @@
 - **高得点トップ表示**: 4麻 50,000点以上、3麻 70,000点以上のトップに ★ を表示
 - **認証**: Supabase の Google OAuth と匿名ゲストログインに対応
 - **Bot対策**: Cloudflare Turnstile を任意で利用可能
-- **PWA基盤**: Web App Manifest と Service Worker 登録に対応
+- **PWA**: ホーム画面への追加と、一度開いたあとのオフラインでの点数計算に対応
 
 ## 技術スタック
 
@@ -162,45 +162,23 @@ Supabase Dashboard で以下を設定します。
 
 ### 4. 対局記録テーブルを作成
 
-Supabase Dashboard の SQL Editor で以下を実行します。
+テーブル定義・CHECK 制約・RLS ポリシーは
+[`supabase/migrations/20261009000000_create_games.sql`](supabase/migrations/20261009000000_create_games.sql)
+にまとめています。以下のいずれかで適用してください。
 
-```sql
-create table public.games (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid not null references auth.users(id) on delete cascade,
-  played_at   timestamptz not null default now(),
-  ruleset     text not null check (ruleset in ('4ma','3ma')),
-  score       integer not null,
-  rank        smallint not null check (rank between 1 and 4),
-  genre       text not null check (genre in ('free_5','free_1','friend')),
-  memo        text,
-  created_at  timestamptz not null default now()
-);
+- Supabase CLI を使う場合: `supabase link --project-ref <project-ref>` の後に `supabase db push`
+- Dashboard を使う場合: SQL Editor にマイグレーションファイルの内容を貼り付けて実行
 
-alter table public.games
-  add constraint games_rank_matches_ruleset
-  check (
-    (ruleset = '4ma' and rank between 1 and 4) or
-    (ruleset = '3ma' and rank between 1 and 3)
-  );
+マイグレーションの内容:
 
-create index games_user_played_at_idx
-  on public.games (user_id, played_at desc);
+- `public.games` テーブル（`user_id` は `auth.uid()` がデフォルト）
+- CHECK 制約: ルール別の順位範囲、素点は -999,900〜999,900 かつ100点単位、メモは200文字以内
+  （アプリ側の入力チェック `src/lib/gameValidation.ts` と同じ値）
+- `(user_id, played_at desc)` インデックス
+- RLS を有効化し、SELECT / INSERT / UPDATE / DELETE とも本人（`auth.uid() = user_id`）の行のみ許可
 
-alter table public.games enable row level security;
-
-create policy "games_select_own" on public.games
-  for select using (auth.uid() = user_id);
-
-create policy "games_insert_own" on public.games
-  for insert with check (auth.uid() = user_id);
-
-create policy "games_update_own" on public.games
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-
-create policy "games_delete_own" on public.games
-  for delete using (auth.uid() = user_id);
-```
+既存の環境（旧 README の SQL で作成済み）に流しても失敗しないよう冪等に書いてあり、
+追加の CHECK 制約は `NOT VALID` で付与されます（新規の書き込みにのみ適用）。
 
 ## 開発コマンド
 
@@ -237,8 +215,8 @@ npm run test:e2e
 
 ## 現在の制限
 
-- Supabase環境変数が未設定の場合、アプリ起動時にエラーになります。
-- Service Worker は登録されていますが、オフライン用のキャッシュ戦略はまだ実装していません。
+- Supabase環境変数が未設定の場合、ログイン・戦績機能は無効になります（点数計算は利用できます）。
+- Service Worker のオフライン対応は簡易的です（画面とビルド済みアセットのみキャッシュ。戦績の閲覧・保存にはネットワーク接続が必要です）。
 - 役選択モードの符は初心者向けの簡易判定です。細かい符計算は翻符入力モードの符計算補助で扱います。
 
 ## ライセンス

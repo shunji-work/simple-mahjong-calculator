@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabaseClient';
+import { isSupabaseConfigured, requireSupabase, supabase } from '../lib/supabaseClient';
 import { AuthContext, type AuthContextValue } from './authContext';
 
 const SESSION_CHECK_TIMEOUT_MS = 8000;
@@ -19,9 +19,11 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Supabase 未設定時は確認するセッションが無いので即座に loading=false
+  const [loading, setLoading] = useState(isSupabaseConfigured);
 
   useEffect(() => {
+    if (!supabase) return;
     let mounted = true;
 
     withTimeout(supabase.auth.getSession(), SESSION_CHECK_TIMEOUT_MS)
@@ -60,22 +62,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       user,
       loading,
+      available: isSupabaseConfigured,
       isAnonymous: user?.is_anonymous === true,
       signInWithGoogle: async () => {
-        const { error } = await supabase.auth.signInWithOAuth({
+        const { error } = await requireSupabase().auth.signInWithOAuth({
           provider: 'google',
           options: { redirectTo: window.location.origin },
         });
         if (error) throw error;
       },
       signInAnonymously: async (captchaToken?: string) => {
-        const { error } = await supabase.auth.signInAnonymously(
+        const { error } = await requireSupabase().auth.signInAnonymously(
           captchaToken ? { options: { captchaToken } } : undefined,
         );
         if (error) throw error;
       },
       signOut: async () => {
-        const { error } = await supabase.auth.signOut();
+        const { error } = await requireSupabase().auth.signOut();
         if (error) throw error;
       },
     };

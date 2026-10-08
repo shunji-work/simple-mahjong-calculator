@@ -1,24 +1,16 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, RotateCw, Trash2 } from 'lucide-react';
+import { formatPlayedAt } from '../lib/format';
 import { GameRecord, GENRE_LABEL, RULESET_LABEL } from '../types/game';
 
 interface Props {
   games: GameRecord[];
   loading: boolean;
+  /** 一覧取得のエラー。削除・保存などの操作エラーはここに渡さないこと */
   error: string | null;
+  onRetry?: () => void;
   onEdit?: (game: GameRecord) => void;
   onDelete?: (game: GameRecord) => void;
   deletingId?: string | null;
-}
-
-function formatPlayedAt(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mi = String(d.getMinutes()).padStart(2, '0');
-  return `${yyyy}/${mm}/${dd} ${hh}:${mi}`;
 }
 
 function formatScore(n: number): string {
@@ -32,7 +24,15 @@ function rankClass(rank: number): string {
   return 'border-red-300/40 bg-red-300/10 text-red-100';
 }
 
-export function GameHistoryList({ games, loading, error, onEdit, onDelete, deletingId }: Props) {
+export function GameHistoryList({
+  games,
+  loading,
+  error,
+  onRetry,
+  onEdit,
+  onDelete,
+  deletingId,
+}: Props) {
   if (loading) {
     return (
       <div className="rounded-xl border border-white/10 bg-slate-900/40 p-6 text-center text-sm text-white/60">
@@ -47,7 +47,17 @@ export function GameHistoryList({ games, loading, error, onEdit, onDelete, delet
         role="alert"
         className="rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-200"
       >
-        {error}
+        <p>{error}</p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-red-300/40 bg-red-500/15 px-3 py-1.5 text-xs font-medium text-red-100 transition hover:bg-red-500/25"
+          >
+            <RotateCw className="h-3.5 w-3.5" />
+            再読み込み
+          </button>
+        )}
       </div>
     );
   }

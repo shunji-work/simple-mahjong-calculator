@@ -1,82 +1,89 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const supabaseMock = vi.hoisted(() => {
-  const single = vi.fn();
-  const insertSelect = vi.fn(() => ({ single }));
-  const insert = vi.fn(() => ({ select: insertSelect }));
+  type Result = { data: unknown; error: unknown; count?: number | null };
+  let result: Result = { data: null, error: null };
 
-  const limit = vi.fn();
-  const order = vi.fn(() => ({ limit }));
-  const eq = vi.fn(() => ({ order }));
-  const selectForList = vi.fn(() => ({ eq }));
+  // PostgREST のクエリビルダーを模したチェーン可能なモック。
+  // 末尾で await されると（then）、setResult で設定した結果を返す。
+  const builder = {
+    insert: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    select: vi.fn(),
+    eq: vi.fn(),
+    in: vi.fn(),
+    order: vi.fn(),
+    limit: vi.fn(),
+    single: vi.fn(() => Promise.resolve(result)),
+    then: (resolve: (value: Result) => unknown, reject?: (reason: unknown) => unknown) =>
+      Promise.resolve(result).then(resolve, reject),
+  };
+  for (const key of ['insert', 'update', 'delete', 'select', 'eq', 'in', 'order', 'limit'] as const) {
+    builder[key].mockImplementation(() => builder);
+  }
 
-  const select = vi.fn((...args: unknown[]) => {
-    select.mock.calls.push(args);
-    return { eq };
-  });
-
-  // update chain: update().eq().select().single()
-  const updateSelect = vi.fn(() => ({ single }));
-  const updateEq = vi.fn(() => ({ select: updateSelect }));
-  const update = vi.fn(() => ({ eq: updateEq }));
-
-  // delete chain: delete().eq()  -> resolves directly
-  const deleteEq = vi.fn();
-  const del = vi.fn(() => ({ eq: deleteEq }));
-
-  const from = vi.fn(() => ({
-    insert,
-    select,
-    update,
-    delete: del,
-  }));
+  const from = vi.fn(() => builder);
 
   return {
     supabase: { from },
-    insert,
-    insertSelect,
-    single,
-    select,
-    selectForList,
-    eq,
-    order,
-    limit,
-    update,
-    updateEq,
-    updateSelect,
-    delete: del,
-    deleteEq,
+    builder,
+    setResult(next: Result) {
+      result = next;
+    },
+    reset() {
+      result = { data: null, error: null };
+    },
   };
 });
 
 vi.mock('./supabaseClient', () => ({
   supabase: supabaseMock.supabase,
+  isSupabaseConfigured: true,
+  requireSupabase: () => supabaseMock.supabase,
 }));
 
-import { deleteGame, insertGame, isStarGame, listRecentGames, updateGame } from './games';
+import { UserFacingError } from './errorMessage';
+import {
+  GAME_COLUMNS,
+  deleteGame,
+  insertGame,
+  isStarGame,
+  listRecentGames,
+  matchesGameFilter,
+  updateGame,
+} from './games';
 
-const COLUMNS = 'id, user_id, played_at, ruleset, score, rank, genre, memo, created_at';
+const { builder } = supabaseMock;
+
+const ROW = {
+  id: 'game-1',
+  user_id: 'user-1',
+  played_at: '2026-04-30T12:00:00Z',
+  ruleset: '4ma',
+  score: 32500,
+  rank: 2,
+  genre: 'free_5',
+  memo: 'good run',
+  created_at: '2026-04-30T12:00:01Z',
+};
 
 afterEach(() => {
   vi.clearAllMocks();
+  supabaseMock.reset();
+});
+
+describe('GAME_COLUMNS', () => {
+  it('lists the snake_case columns of the games table', () => {
+    expect(GAME_COLUMNS).toBe(
+      'id, user_id, played_at, ruleset, score, rank, genre, memo, created_at',
+    );
+  });
 });
 
 describe('insertGame', () => {
   it('inserts a row with snake_case columns and returns a camelCase record', async () => {
-    supabaseMock.single.mockResolvedValueOnce({
-      data: {
-        id: 'game-1',
-        user_id: 'user-1',
-        played_at: '2026-04-30T12:00:00Z',
-        ruleset: '4ma',
-        score: 32500,
-        rank: 2,
-        genre: 'free_5',
-        memo: 'good run',
-        created_at: '2026-04-30T12:00:01Z',
-      },
-      error: null,
-    });
+    supabaseMock.setResult({ data: ROW, error: null });
 
     const record = await insertGame({
       userId: 'user-1',
@@ -89,7 +96,7 @@ describe('insertGame', () => {
     });
 
     expect(supabaseMock.supabase.from).toHaveBeenCalledWith('games');
-    expect(supabaseMock.insert).toHaveBeenCalledWith({
+    expect(builder.insert).toHaveBeenCalledWith({
       user_id: 'user-1',
       played_at: '2026-04-30T12:00:00Z',
       ruleset: '4ma',
@@ -98,7 +105,8 @@ describe('insertGame', () => {
       genre: 'free_5',
       memo: 'good run',
     });
-    expect(supabaseMock.insertSelect).toHaveBeenCalledWith(COLUMNS);
+    expect(builder.select).toHaveBeenCalledWith(GAME_COLUMNS);
+    expect(builder.single).toHaveBeenCalledTimes(1);
     expect(record).toEqual({
       id: 'game-1',
       userId: 'user-1',
@@ -113,20 +121,7 @@ describe('insertGame', () => {
   });
 
   it('coerces missing memo to null', async () => {
-    supabaseMock.single.mockResolvedValueOnce({
-      data: {
-        id: 'game-2',
-        user_id: 'user-1',
-        played_at: '2026-04-30T12:00:00Z',
-        ruleset: '3ma',
-        score: 70000,
-        rank: 1,
-        genre: 'friend',
-        memo: null,
-        created_at: '2026-04-30T12:00:01Z',
-      },
-      error: null,
-    });
+    supabaseMock.setResult({ data: { ...ROW, memo: null }, error: null });
 
     await insertGame({
       userId: 'user-1',
@@ -137,16 +132,11 @@ describe('insertGame', () => {
       genre: 'friend',
     });
 
-    expect(supabaseMock.insert).toHaveBeenCalledWith(
-      expect.objectContaining({ memo: null }),
-    );
+    expect(builder.insert).toHaveBeenCalledWith(expect.objectContaining({ memo: null }));
   });
 
   it('throws when supabase returns an error', async () => {
-    supabaseMock.single.mockResolvedValueOnce({
-      data: null,
-      error: { message: 'permission denied' },
-    });
+    supabaseMock.setResult({ data: null, error: { message: 'permission denied' } });
 
     await expect(
       insertGame({
@@ -162,34 +152,27 @@ describe('insertGame', () => {
 });
 
 describe('updateGame', () => {
-  it('updates by id with snake_case columns and returns camelCase record', async () => {
-    supabaseMock.single.mockResolvedValueOnce({
-      data: {
-        id: 'game-1',
-        user_id: 'user-1',
-        played_at: '2026-04-30T13:00:00Z',
-        ruleset: '4ma',
-        score: 41000,
-        rank: 1,
-        genre: 'free_1',
-        memo: 'edited',
-        created_at: '2026-04-30T12:00:01Z',
-      },
+  const input = {
+    id: 'game-1',
+    userId: 'user-1',
+    playedAt: '2026-04-30T13:00:00Z',
+    ruleset: '4ma' as const,
+    score: 41000,
+    rank: 1,
+    genre: 'free_1' as const,
+    memo: 'edited',
+  };
+
+  it('updates own row by id with snake_case columns and returns camelCase record', async () => {
+    supabaseMock.setResult({
+      data: { ...ROW, played_at: input.playedAt, score: 41000, rank: 1, genre: 'free_1', memo: 'edited' },
       error: null,
     });
 
-    const record = await updateGame({
-      id: 'game-1',
-      playedAt: '2026-04-30T13:00:00Z',
-      ruleset: '4ma',
-      score: 41000,
-      rank: 1,
-      genre: 'free_1',
-      memo: 'edited',
-    });
+    const record = await updateGame(input);
 
     expect(supabaseMock.supabase.from).toHaveBeenCalledWith('games');
-    expect(supabaseMock.update).toHaveBeenCalledWith({
+    expect(builder.update).toHaveBeenCalledWith({
       played_at: '2026-04-30T13:00:00Z',
       ruleset: '4ma',
       score: 41000,
@@ -197,48 +180,56 @@ describe('updateGame', () => {
       genre: 'free_1',
       memo: 'edited',
     });
-    expect(supabaseMock.updateEq).toHaveBeenCalledWith('id', 'game-1');
-    expect(supabaseMock.updateSelect).toHaveBeenCalledWith(COLUMNS);
+    expect(builder.eq).toHaveBeenCalledWith('id', 'game-1');
+    expect(builder.eq).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(builder.select).toHaveBeenCalledWith(GAME_COLUMNS);
     expect(record.id).toBe('game-1');
     expect(record.score).toBe(41000);
   });
 
   it('throws when supabase returns an error', async () => {
-    supabaseMock.single.mockResolvedValueOnce({
+    supabaseMock.setResult({ data: null, error: { message: 'permission denied' } });
+
+    await expect(updateGame(input)).rejects.toMatchObject({ message: 'permission denied' });
+  });
+
+  it('turns a 0-row update (PGRST116) into a user-facing error', async () => {
+    supabaseMock.setResult({
       data: null,
-      error: { message: 'permission denied' },
+      error: { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' },
     });
 
-    await expect(
-      updateGame({
-        id: 'game-x',
-        playedAt: '2026-04-30T13:00:00Z',
-        ruleset: '4ma',
-        score: 25000,
-        rank: 3,
-        genre: 'free_5',
-      }),
-    ).rejects.toMatchObject({ message: 'permission denied' });
+    const promise = updateGame(input);
+    await expect(promise).rejects.toBeInstanceOf(UserFacingError);
+    await expect(promise).rejects.toThrow('更新対象の記録が見つかりませんでした');
   });
 });
 
 describe('deleteGame', () => {
-  it('deletes by id', async () => {
-    supabaseMock.deleteEq.mockResolvedValueOnce({ error: null });
+  it('deletes own row by id and asks for the deleted ids back', async () => {
+    supabaseMock.setResult({ data: [{ id: 'game-1' }], error: null });
 
-    await deleteGame('game-1');
+    await deleteGame('game-1', 'user-1');
 
     expect(supabaseMock.supabase.from).toHaveBeenCalledWith('games');
-    expect(supabaseMock.delete).toHaveBeenCalled();
-    expect(supabaseMock.deleteEq).toHaveBeenCalledWith('id', 'game-1');
+    expect(builder.delete).toHaveBeenCalled();
+    expect(builder.eq).toHaveBeenCalledWith('id', 'game-1');
+    expect(builder.eq).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(builder.select).toHaveBeenCalledWith('id');
+  });
+
+  it('throws a user-facing error when no row was deleted (e.g. filtered by RLS)', async () => {
+    supabaseMock.setResult({ data: [], error: null });
+
+    const promise = deleteGame('game-1', 'user-1');
+    await expect(promise).rejects.toBeInstanceOf(UserFacingError);
+    await expect(promise).rejects.toThrow('記録を削除できませんでした');
   });
 
   it('throws when supabase returns an error', async () => {
-    supabaseMock.deleteEq.mockResolvedValueOnce({
-      error: { message: 'permission denied' },
-    });
+    supabaseMock.setResult({ data: null, error: { message: 'permission denied' } });
 
-    await expect(deleteGame('game-1')).rejects.toMatchObject({
+    await expect(deleteGame('game-1', 'user-1')).rejects.toMatchObject({
       message: 'permission denied',
     });
   });
@@ -271,48 +262,76 @@ describe('isStarGame', () => {
 });
 
 describe('listRecentGames', () => {
-  it('selects own rows ordered by played_at desc with limit', async () => {
-    supabaseMock.limit.mockResolvedValueOnce({
-      data: [
-        {
-          id: 'game-3',
-          user_id: 'user-1',
-          played_at: '2026-04-30T12:00:00Z',
-          ruleset: '4ma',
-          score: 60000,
-          rank: 1,
-          genre: 'friend',
-          memo: null,
-          created_at: '2026-04-30T12:00:01Z',
-        },
-      ],
+  it('selects own rows with exact count, ordered by played_at desc with limit', async () => {
+    supabaseMock.setResult({
+      data: [{ ...ROW, id: 'game-3', score: 60000, rank: 1, genre: 'friend', memo: null }],
       error: null,
+      count: 42,
     });
 
-    const records = await listRecentGames('user-1', 30);
+    const result = await listRecentGames('user-1', { limit: 30 });
 
     expect(supabaseMock.supabase.from).toHaveBeenCalledWith('games');
-    expect(supabaseMock.select).toHaveBeenCalledWith(COLUMNS);
-    expect(supabaseMock.eq).toHaveBeenCalledWith('user_id', 'user-1');
-    expect(supabaseMock.order).toHaveBeenCalledWith('played_at', { ascending: false });
-    expect(supabaseMock.limit).toHaveBeenCalledWith(30);
-    expect(records).toHaveLength(1);
-    expect(records[0]).toMatchObject({ id: 'game-3', userId: 'user-1', score: 60000 });
+    expect(builder.select).toHaveBeenCalledWith(GAME_COLUMNS, { count: 'exact' });
+    expect(builder.eq).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(builder.eq).toHaveBeenCalledTimes(1);
+    expect(builder.in).not.toHaveBeenCalled();
+    expect(builder.order).toHaveBeenCalledWith('played_at', { ascending: false });
+    expect(builder.limit).toHaveBeenCalledWith(30);
+    expect(result.total).toBe(42);
+    expect(result.games).toHaveLength(1);
+    expect(result.games[0]).toMatchObject({ id: 'game-3', userId: 'user-1', score: 60000 });
+  });
+
+  it('filters by ruleset and a single genre on the server', async () => {
+    supabaseMock.setResult({ data: [], error: null, count: 0 });
+
+    await listRecentGames('user-1', { ruleset: '3ma', genre: 'friend' });
+
+    expect(builder.eq).toHaveBeenCalledWith('ruleset', '3ma');
+    expect(builder.eq).toHaveBeenCalledWith('genre', 'friend');
+  });
+
+  it('expands free_total into free_5 and free_1', async () => {
+    supabaseMock.setResult({ data: [], error: null, count: 0 });
+
+    await listRecentGames('user-1', { ruleset: '4ma', genre: 'free_total' });
+
+    expect(builder.in).toHaveBeenCalledWith('genre', ['free_5', 'free_1']);
+    expect(builder.eq).not.toHaveBeenCalledWith('genre', expect.anything());
   });
 
   it('defaults limit to 30', async () => {
-    supabaseMock.limit.mockResolvedValueOnce({ data: [], error: null });
+    supabaseMock.setResult({ data: [], error: null, count: 0 });
 
     await listRecentGames('user-1');
 
-    expect(supabaseMock.limit).toHaveBeenCalledWith(30);
+    expect(builder.limit).toHaveBeenCalledWith(30);
   });
 
   it('returns empty array when data is null', async () => {
-    supabaseMock.limit.mockResolvedValueOnce({ data: null, error: null });
+    supabaseMock.setResult({ data: null, error: null, count: null });
 
-    const records = await listRecentGames('user-1');
+    const result = await listRecentGames('user-1');
 
-    expect(records).toEqual([]);
+    expect(result).toEqual({ games: [], total: 0 });
+  });
+
+  it('throws when supabase returns an error', async () => {
+    supabaseMock.setResult({ data: null, error: { message: 'boom' } });
+
+    await expect(listRecentGames('user-1')).rejects.toMatchObject({ message: 'boom' });
+  });
+});
+
+describe('matchesGameFilter', () => {
+  it('matches by ruleset and genre, treating free_total as free_5 + free_1', () => {
+    const g = { ruleset: '4ma' as const, genre: 'free_1' as const };
+    expect(matchesGameFilter(g, {})).toBe(true);
+    expect(matchesGameFilter(g, { ruleset: '4ma' })).toBe(true);
+    expect(matchesGameFilter(g, { ruleset: '3ma' })).toBe(false);
+    expect(matchesGameFilter(g, { ruleset: '4ma', genre: 'free_total' })).toBe(true);
+    expect(matchesGameFilter(g, { ruleset: '4ma', genre: 'free_1' })).toBe(true);
+    expect(matchesGameFilter(g, { ruleset: '4ma', genre: 'friend' })).toBe(false);
   });
 });

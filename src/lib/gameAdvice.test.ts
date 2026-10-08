@@ -75,4 +75,34 @@ describe('generateScoreAdvice', () => {
     expect(advice.variant).toBe('caution');
     expect(advice.title).toBe('振れ幅大きめ');
   });
+
+  it('judges the average against the per-ruleset origin (4麻 30000 / 3麻 40000)', () => {
+    const records = [
+      { score: 38000, rank: 2 },
+      { score: 37000, rank: 2 },
+      { score: 39000, rank: 2 },
+      { score: 38000, rank: 3 },
+    ];
+
+    const threePlayer = generateScoreAdvice(records, '3ma');
+    expect(threePlayer.variant).toBe('caution');
+    expect(threePlayer.title).toBe('守備を一段早く');
+
+    const fourPlayer = generateScoreAdvice(records, '4ma');
+    expect(fourPlayer.title).not.toBe('守備を一段早く');
+  });
+
+  it('flags a below-origin average for 4-player records', () => {
+    const advice = generateScoreAdvice(
+      [
+        { score: 28000, rank: 3 },
+        { score: 27000, rank: 2 },
+        { score: 29000, rank: 3 },
+        { score: 28000, rank: 3 },
+      ],
+      '4ma',
+    );
+
+    expect(advice.title).toBe('守備を一段早く');
+  });
 });

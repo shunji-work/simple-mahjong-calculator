@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/useAuth';
 import { AuthDialog } from './AuthDialog';
 
 export function AuthButton() {
-  const { user, loading, isAnonymous, signOut } = useAuth();
+  const { user, loading, available, isAnonymous, signOut } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -19,6 +19,9 @@ export function AuthButton() {
     window.addEventListener('mousedown', handleClick);
     return () => window.removeEventListener('mousedown', handleClick);
   }, [menuOpen]);
+
+  // Supabase 未設定時はログイン機能自体を出さない（点数計算は引き続き使える）
+  if (!available) return null;
 
   if (loading) {
     return (
@@ -76,11 +79,14 @@ export function AuthButton() {
       {menuOpen && (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-2 w-48 overflow-hidden rounded-lg border border-white/10 bg-slate-900 shadow-xl"
+          className="absolute right-0 z-50 mt-2 w-60 overflow-hidden rounded-lg border border-white/10 bg-slate-900 shadow-xl"
         >
           {isAnonymous && (
             <div className="border-b border-white/10 px-3 py-2 text-xs text-white/60">
-              ゲストモードで利用中
+              <p>ゲストモードで利用中</p>
+              <p className="mt-1 text-amber-200/90">
+                ログアウトするとゲストの記録には戻れません。Google でログインし直しても記録は引き継がれません。
+              </p>
             </div>
           )}
           <button

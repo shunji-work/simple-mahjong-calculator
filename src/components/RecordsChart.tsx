@@ -9,32 +9,30 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { LineChart as LineChartIcon, Sparkles, Star } from 'lucide-react';
+import { Lightbulb, LineChart as LineChartIcon, Star } from 'lucide-react';
+import { formatPlayedAt } from '../lib/format';
 import { generateScoreAdvice } from '../lib/gameAdvice';
 import { isStarGame } from '../lib/games';
 import {
   GameRecord,
   GENRE_LABEL,
+  ORIGIN_SCORE,
   RULESET_LABEL,
   Ruleset,
+  STAR_THRESHOLD,
+  STARTING_SCORE,
 } from '../types/game';
 
 interface Props {
+  /** 選択中のルール（・ジャンル）で絞り込まれた、played_at 降順の対局 */
   games: GameRecord[];
+  ruleset: Ruleset;
+  /** フィルタ条件に一致する全件数（サーバー側の件数） */
+  totalCount: number;
 }
 
 const RANGE_OPTIONS = [5, 10, 30] as const;
 type RangeOption = (typeof RANGE_OPTIONS)[number];
-
-const RULESET_OPTIONS: ReadonlyArray<{ id: Ruleset; label: string }> = [
-  { id: '4ma', label: '4麻' },
-  { id: '3ma', label: '3麻' },
-];
-
-const STAR_THRESHOLD: Record<Ruleset, number> = {
-  '4ma': 50000,
-  '3ma': 70000,
-};
 
 const ADVICE_STYLE = {
   positive: {
@@ -64,16 +62,6 @@ interface ChartPoint {
   playedAt: string;
   rank: number;
   genre: GameRecord['genre'];
-}
-
-function formatPlayedAt(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mi = String(d.getMinutes()).padStart(2, '0');
-  return `${mm}/${dd} ${hh}:${mi}`;
 }
 
 interface DotProps {
@@ -132,7 +120,7 @@ function ChartTooltip({
   const p = payload[0].payload;
   return (
     <div className="rounded-md border border-white/15 bg-slate-900/95 px-3 py-2 text-xs text-white shadow-xl">
-      <div className="text-white/60">{formatPlayedAt(p.playedAt)}</div>
+      <div className="text-white/60">{formatPlayedAt(p.playedAt, { withYear: false })}</div>
       <div className="mt-0.5 flex items-center gap-2">
         <span className="rounded-full border border-white/15 px-1.5 py-0.5 text-[10px] text-white/80">
           {GENRE_LABEL[p.genre]}
@@ -147,8 +135,7 @@ function ChartTooltip({
   );
 }
 
-export function RecordsChart({ games }: Props) {
-  const [ruleset, setRuleset] = useState<Ruleset>('4ma');
+export function RecordsChart({ games, ruleset, totalCount }: Props) {
   const [range, setRange] = useState<RangeOption>(10);
 
   const points = useMemo<ChartPoint[]>(() => {
@@ -167,19 +154,17 @@ export function RecordsChart({ games }: Props) {
   }, [games, ruleset, range]);
 
   const starThreshold = STAR_THRESHOLD[ruleset];
-  const totalForRuleset = useMemo(
-    () => games.filter((g) => g.ruleset === ruleset).length,
-    [games, ruleset],
-  );
+  const originScore = ORIGIN_SCORE[ruleset];
+  const startingScore = STARTING_SCORE[ruleset];
 
   const yDomain = useMemo<[number, number] | undefined>(() => {
     if (points.length === 0) return undefined;
     const scores = points.map((p) => p.score);
-    const min = Math.min(...scores, 25000);
+    const min = Math.min(...scores, startingScore);
     const max = Math.max(...scores, starThreshold);
     const pad = 5000;
     return [Math.floor((min - pad) / 5000) * 5000, Math.ceil((max + pad) / 5000) * 5000];
-  }, [points, starThreshold]);
+  }, [points, starThreshold, startingScore]);
 
   const advice = useMemo(
     () => generateScoreAdvice(points.map(({ score, rank }) => ({ score, rank })), ruleset),
@@ -193,34 +178,11 @@ export function RecordsChart({ games }: Props) {
         <h3 className="flex items-center gap-2 text-base font-bold text-white sm:text-lg">
           <LineChartIcon className="h-5 w-5 text-amber-300" />
           スコア推移
+          <span className="rounded-full border border-white/15 px-2 py-0.5 text-xs font-medium text-white/70">
+            {RULESET_LABEL[ruleset]}
+          </span>
         </h3>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <div
-            role="tablist"
-            aria-label="ルール切替"
-            className="inline-flex overflow-hidden rounded-lg border border-white/15"
-          >
-            {RULESET_OPTIONS.map((opt) => {
-              const active = ruleset === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setRuleset(opt.id)}
-                  className={`px-3 py-1.5 text-xs font-medium transition sm:text-sm ${
-                    active
-                      ? 'bg-amber-500/25 text-amber-100'
-                      : 'bg-slate-900/60 text-white/70 hover:bg-white/10'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-
           <div
             role="tablist"
             aria-label="期間切替"
@@ -251,9 +213,7 @@ export function RecordsChart({ games }: Props) {
 
       {points.length === 0 ? (
         <div className="rounded-lg border border-white/10 bg-slate-950/40 p-6 text-center text-sm text-white/60">
-          {totalForRuleset === 0
-            ? `${RULESET_LABEL[ruleset]}の記録がまだありません。`
-            : `${RULESET_LABEL[ruleset]}の記録は${totalForRuleset}件です。`}
+          {`${RULESET_LABEL[ruleset]}の記録がまだありません。`}
         </div>
       ) : (
         <>
@@ -282,11 +242,11 @@ export function RecordsChart({ games }: Props) {
                   cursor={{ stroke: 'rgba(251,191,36,0.4)', strokeWidth: 1 }}
                 />
                 <ReferenceLine
-                  y={30000}
+                  y={originScore}
                   stroke="rgba(255,255,255,0.25)"
                   strokeDasharray="4 4"
                   label={{
-                    value: '原点 30k',
+                    value: `原点 ${(originScore / 1000).toFixed(0)}k`,
                     fill: 'rgba(255,255,255,0.55)',
                     fontSize: 10,
                     position: 'right',
@@ -317,16 +277,17 @@ export function RecordsChart({ games }: Props) {
           </div>
           <p className="mt-2 text-[11px] text-white/50">
             ★ = {RULESET_LABEL[ruleset]}で{(starThreshold / 1000).toFixed(0)}点以上のトップ。
-            グラフ左が古く、右が新しい対局です（直近{points.length}件 / 全{totalForRuleset}件）。
+            原点（{(originScore / 1000).toFixed(0)}k）は{RULESET_LABEL[ruleset]}の一般的な返し点です。
+            グラフ左が古く、右が新しい対局です（直近{points.length}件 / 全{totalCount}件）。
           </p>
           <div className={`mt-3 rounded-lg border ${adviceStyle.border} ${adviceStyle.bg} p-3`}>
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 text-sm font-bold text-white">
-                <Sparkles className={`h-4 w-4 ${adviceStyle.icon}`} />
-                AIひとこと
+                <Lightbulb className={`h-4 w-4 ${adviceStyle.icon}`} />
+                ワンポイント分析
               </span>
               <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${adviceStyle.badge}`}>
-                ローカル分析
+                ルールベース
               </span>
               <span className="text-xs font-medium text-white/70">{advice.title}</span>
             </div>

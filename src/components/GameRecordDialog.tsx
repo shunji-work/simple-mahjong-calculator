@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { useAuth } from '../contexts/useAuth';
+import { getErrorMessage } from '../lib/errorMessage';
+import { MEMO_MAX_LENGTH, SCORE_MAX, SCORE_MIN, validateGameForm } from '../lib/gameValidation';
 import { insertGame, updateGame } from '../lib/games';
 import {
   GameRecord,
@@ -24,10 +26,6 @@ function nowAsLocalInput(): string {
   const now = new Date();
   const tz = now.getTimezoneOffset() * 60000;
   return new Date(now.getTime() - tz).toISOString().slice(0, 16);
-}
-
-function localInputToIso(value: string): string {
-  return new Date(value).toISOString();
 }
 
 function isoToLocalInput(iso: string): string {
@@ -83,14 +81,20 @@ export function GameRecordDialog({ open, onClose, onSaved, onRequestLogin, editi
     }
   }, [maxRank, rank]);
 
+  // 保存中は閉じられないようにする（保存結果を取りこぼさないため）
+  const requestClose = useCallback(() => {
+    if (submitting) return;
+    onClose();
+  }, [submitting, onClose]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') requestClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open, requestClose]);
 
   if (!open) return null;
 
@@ -103,52 +107,39 @@ export function GameRecordDialog({ open, onClose, onSaved, onRequestLogin, editi
       return;
     }
 
-    const trimmedScore = score.trim();
-    if (trimmedScore === '') {
-      setError('点数を入力してください。');
+    const validation = validateGameForm({ ruleset, score, rank, playedAtLocal, memo });
+    if (!validation.ok) {
+      setError(validation.error);
       return;
     }
-    const scoreNum = Number(trimmedScore);
-    if (!Number.isFinite(scoreNum) || !Number.isInteger(scoreNum)) {
-      setError('点数は整数で入力してください。');
-      return;
-    }
-
-    if (rank == null) {
-      setError('順位を選択してください。');
-      return;
-    }
-
-    if (!playedAtLocal) {
-      setError('対局日時を入力してください。');
-      return;
-    }
+    const { value } = validation;
 
     setSubmitting(true);
     try {
       const record = isEditing
         ? await updateGame({
             id: editing.id,
-            playedAt: localInputToIso(playedAtLocal),
+            userId: user.id,
+            playedAt: value.playedAt,
             ruleset,
-            score: scoreNum,
-            rank,
+            score: value.score,
+            rank: value.rank,
             genre,
-            memo: memo.trim() || null,
+            memo: value.memo,
           })
         : await insertGame({
             userId: user.id,
-            playedAt: localInputToIso(playedAtLocal),
+            playedAt: value.playedAt,
             ruleset,
-            score: scoreNum,
-            rank,
+            score: value.score,
+            rank: value.rank,
             genre,
-            memo: memo.trim() || null,
+            memo: value.memo,
           });
       onSaved(record);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '保存に失敗しました');
+      setError(getErrorMessage(err, '保存に失敗しました。時間をおいて、もう一度お試しください。'));
     } finally {
       setSubmitting(false);
     }
@@ -160,7 +151,7 @@ export function GameRecordDialog({ open, onClose, onSaved, onRequestLogin, editi
       aria-modal="true"
       aria-labelledby="game-record-dialog-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-sm"
-      onClick={onClose}
+      onClick={requestClose}
     >
       <div
         className="relative max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl"
@@ -168,9 +159,10 @@ export function GameRecordDialog({ open, onClose, onSaved, onRequestLogin, editi
       >
         <button
           type="button"
-          onClick={onClose}
+          onClick={requestClose}
+          disabled={submitting}
           aria-label="閉じる"
-          className="absolute right-3 top-3 rounded-full p-1 text-white/70 transition hover:bg-white/10 hover:text-white"
+          className="absolute right-3 top-3 rounded-full p-1 text-white/70 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
           <X className="h-5 w-5" />
         </button>
@@ -201,7 +193,7 @@ export function GameRecordDialog({ open, onClose, onSaved, onRequestLogin, editi
               <div className="flex items-start gap-2 rounded-md border border-amber-400/30 bg-amber-500/10 p-2 text-xs text-amber-100">
                 <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
                 <span>
-                  ゲストモードで利用中です。ブラウザや端末を変えると記録は消えます。Google ログインを推奨します。
+                  ゲストモードで利用中です。ブラウザや端末を変えると記録は見られなくなり、後から Google でログインしても引き継がれません。
                 </span>
               </div>
             )}
@@ -235,12 +227,14 @@ export function GameRecordDialog({ open, onClose, onSaved, onRequestLogin, editi
                 type="number"
                 inputMode="numeric"
                 step={100}
+                min={SCORE_MIN}
+                max={SCORE_MAX}
                 value={score}
                 onChange={(e) => setScore(e.target.value)}
                 placeholder="例: 32500"
                 className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-base text-white placeholder-white/30 outline-none transition focus:border-amber-400/60 focus:bg-white/10"
               />
-              <p className="mt-1 text-xs text-white/50">マイナスも入力できます（例: -3000）</p>
+              <p className="mt-1 text-xs text-white/50">100点単位で入力。マイナスも入力できます（例: -3000）</p>
             </div>
 
             <div>
@@ -305,9 +299,13 @@ export function GameRecordDialog({ open, onClose, onSaved, onRequestLogin, editi
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
                 rows={2}
+                maxLength={MEMO_MAX_LENGTH}
                 placeholder="例: 序盤リードして逃げ切り"
                 className="w-full resize-none rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none transition focus:border-amber-400/60 focus:bg-white/10"
               />
+              <p className="mt-1 text-right text-[11px] text-white/40">
+                {memo.length} / {MEMO_MAX_LENGTH}
+              </p>
             </div>
 
             {error && (

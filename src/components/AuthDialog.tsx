@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { useAuth } from '../contexts/useAuth';
+import { getErrorMessage, isNetworkError } from '../lib/errorMessage';
 
 type Props = {
   open: boolean;
@@ -13,19 +14,16 @@ const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as
   | undefined;
 
 function getAuthErrorMessage(error: unknown, fallback: string): string {
-  if (!(error instanceof Error)) {
-    return fallback;
+  const message = getErrorMessage(error, fallback);
+  // 開発時のみ、接続失敗の原因になりやすい環境変数の確認を促す
+  if (import.meta.env.DEV && isNetworkError(error)) {
+    return `${message}（開発者向け: .env.local の VITE_SUPABASE_URL と VITE_SUPABASE_ANON_KEY を確認してください）`;
   }
-
-  if (/failed to fetch|network/i.test(error.message)) {
-    return 'Supabaseに接続できませんでした。.env.local の VITE_SUPABASE_URL と VITE_SUPABASE_ANON_KEY、または本番環境変数を確認してください。';
-  }
-
-  return error.message || fallback;
+  return message;
 }
 
 export function AuthDialog({ open, onClose }: Props) {
-  const { signInWithGoogle, signInAnonymously } = useAuth();
+  const { signInWithGoogle, signInAnonymously, available } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -109,43 +107,57 @@ export function AuthDialog({ open, onClose }: Props) {
           ログインすると、点数や順位を保存して後から振り返ることができます。
         </p>
 
-        <button
-          type="button"
-          onClick={handleGoogle}
-          disabled={submitting}
-          className="mt-5 flex w-full items-center justify-center gap-3 rounded-lg border border-white/20 bg-white px-4 py-3 font-medium text-slate-900 shadow transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <GoogleLogo />
-          Googleでログイン
-        </button>
+        {!available ? (
+          <p
+            role="alert"
+            className="mt-5 rounded-md border border-white/15 bg-white/5 p-3 text-sm text-white/70"
+          >
+            ログイン・記録機能は現在利用できません。点数計算はそのままご利用いただけます。
+          </p>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={handleGoogle}
+              disabled={submitting}
+              className="mt-5 flex w-full items-center justify-center gap-3 rounded-lg border border-white/20 bg-white px-4 py-3 font-medium text-slate-900 shadow transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <GoogleLogo />
+              Googleでログイン
+            </button>
 
-        <div className="my-4 flex items-center gap-3 text-xs text-white/50">
-          <div className="h-px flex-1 bg-white/15" />
-          <span>または</span>
-          <div className="h-px flex-1 bg-white/15" />
-        </div>
+            <div className="my-4 flex items-center gap-3 text-xs text-white/50">
+              <div className="h-px flex-1 bg-white/15" />
+              <span>または</span>
+              <div className="h-px flex-1 bg-white/15" />
+            </div>
 
-        {TURNSTILE_SITE_KEY && (
-          <div className="mb-3 flex justify-center">
-            <Turnstile
-              ref={turnstileRef}
-              siteKey={TURNSTILE_SITE_KEY}
-              options={{ theme: 'dark', size: 'flexible' }}
-              onSuccess={(token) => setCaptchaToken(token)}
-              onExpire={() => setCaptchaToken(null)}
-              onError={() => setCaptchaToken(null)}
-            />
-          </div>
+            {TURNSTILE_SITE_KEY && (
+              <div className="mb-3 flex justify-center">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  options={{ theme: 'dark', size: 'flexible' }}
+                  onSuccess={(token) => setCaptchaToken(token)}
+                  onExpire={() => setCaptchaToken(null)}
+                  onError={() => setCaptchaToken(null)}
+                />
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleGuest}
+              disabled={submitting || (Boolean(TURNSTILE_SITE_KEY) && !captchaToken)}
+              className="w-full rounded-lg border border-amber-400/40 bg-amber-500/10 px-4 py-3 font-medium text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              ゲストとして使う
+            </button>
+            <p className="mt-2 text-xs leading-relaxed text-white/55">
+              ゲストの記録はこのブラウザにのみ保存されます。後から Google でログインしても、ゲストの記録は引き継がれません。長く使う場合は最初から Google ログインがおすすめです。
+            </p>
+          </>
         )}
-
-        <button
-          type="button"
-          onClick={handleGuest}
-          disabled={submitting || (Boolean(TURNSTILE_SITE_KEY) && !captchaToken)}
-          className="w-full rounded-lg border border-amber-400/40 bg-amber-500/10 px-4 py-3 font-medium text-amber-200 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          ゲストとして使う
-        </button>
 
         {error && (
           <p
