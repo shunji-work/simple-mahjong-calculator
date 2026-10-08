@@ -64,9 +64,14 @@ export interface HanFuInput {
 export interface ScoreResult {
   fu: number;
   totalHan: number;
+  /** 基本点（満貫以上は 2000 / 3000 / 4000 / 6000 / 8000） */
   basePoints: number;
+  isOya: boolean;
+  /** 子のツモ和了時に親が支払う点数 */
   oyaPay?: number;
+  /** ツモ和了時に子が支払う点数（親のツモ和了ではオールの点数） */
   koPay?: number;
-  ronPay: number;
+  /** 和了者が受け取る合計点（ロンなら放銃者の支払い、ツモなら全員の支払い合計） */
+  totalPay: number;
   scoreName: string;
 }

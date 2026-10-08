@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Calculator, RotateCcw } from 'lucide-react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { Calculator } from 'lucide-react';
 import {
   AppMode,
   FuAssistantState,
@@ -9,13 +9,21 @@ import {
 } from './types/mahjong';
 import { YAKU_LIST, getCategoryYaku } from './data/yaku';
 import {
+  MENZEN_TSUMO_YAKU_ID,
+  YAKUMAN_YAKU_ID,
+  getIncompatibleYakuIds,
+  isIncompatibleWithSelected,
+  isYakumanSelected,
+} from './data/yakuRules';
+import {
   calculateFuFromAssistant,
   calculateScore,
   calculateScoreFromHanFu,
+  getHanFuError,
+  hasYaku,
   isFuAssistantApplicable,
   sanitizeFuAssistantState,
 } from './utils/scoreCalculator';
-import { YakuButton } from './components/YakuButton';
 import { ScoreDisplay } from './components/ScoreDisplay';
 import { DoraCounter } from './components/DoraCounter';
 import { ModeTabs } from './components/ModeTabs';
@@ -23,95 +31,18 @@ import { ManualScoreForm } from './components/ManualScoreForm';
 import { FuAssistant } from './components/FuAssistant';
 import { AuthButton } from './components/AuthButton';
 import { TopTabs, type TopTab } from './components/TopTabs';
-import { RecordsView } from './components/RecordsView';
+import { EmptyScoreCard } from './components/EmptyScoreCard';
+import { YakuSection } from './components/YakuSection';
+import { SelectedYakuSummary } from './components/SelectedYakuSummary';
+import { YakuModeControls } from './components/YakuModeControls';
+import { ManualStatusPanel } from './components/ManualStatusPanel';
 
-const YAKUHAI_IDS = new Set([
-  'haku',
-  'hatsu',
-  'chun',
-  'jikazehai',
-  'bakazehai',
-]);
+// 戦績タブは recharts を含み大きいため、開いたときに読み込む
+const RecordsView = lazy(() =>
+  import('./components/RecordsView').then((module) => ({ default: module.RecordsView })),
+);
 
-const INCOMPATIBLE_PAIRS: Array<[string, string]> = [
-  ...Array.from(YAKUHAI_IDS).flatMap(
-    (yakuhaiId) =>
-      ([
-        [yakuhaiId, 'tanyao'],
-        [yakuhaiId, 'pinfu'],
-        [yakuhaiId, 'chiitoitsu'],
-        [yakuhaiId, 'junchan'],
-        [yakuhaiId, 'ryanpeikou'],
-        [yakuhaiId, 'chinitsu'],
-      ] as Array<[string, string]>),
-  ),
-  ['tanyao', 'ikkitsuukan'],
-  ['tanyao', 'chanta'],
-  ['tanyao', 'junchan'],
-  ['tanyao', 'honroutou'],
-  ['tanyao', 'shousangen'],
-  ['tanyao', 'honitsu'],
-  ['pinfu', 'toitoihou'],
-  ['pinfu', 'sanankou'],
-  ['pinfu', 'sankantsu'],
-  ['pinfu', 'chiitoitsu'],
-  ['pinfu', 'honroutou'],
-  ['pinfu', 'shousangen'],
-  ['ipeikou', 'toitoihou'],
-  ['ipeikou', 'sanankou'],
-  ['ipeikou', 'sankantsu'],
-  ['ipeikou', 'chiitoitsu'],
-  ['ipeikou', 'honroutou'],
-  ['ipeikou', 'ryanpeikou'],
-  ['ryanpeikou', 'sanshokudoujun'],
-  ['ryanpeikou', 'ikkitsuukan'],
-  ['ryanpeikou', 'toitoihou'],
-  ['ryanpeikou', 'sanankou'],
-  ['ryanpeikou', 'sankantsu'],
-  ['ryanpeikou', 'chiitoitsu'],
-  ['ryanpeikou', 'honroutou'],
-  ['ryanpeikou', 'shousangen'],
-  ['ryanpeikou', 'honitsu'],
-  ['ryanpeikou', 'chinitsu'],
-  ['ryanpeikou', 'ipeikou'],
-  ['sanshokudoujun', 'ikkitsuukan'],
-  ['sanshokudoujun', 'sanankou'],
-  ['sanshokudoujun', 'sankantsu'],
-  ['sanshokudoujun', 'chiitoitsu'],
-  ['sanshokudoujun', 'honroutou'],
-  ['sanshokudoujun', 'shousangen'],
-  ['sanshokudoujun', 'honitsu'],
-  ['sanshokudoujun', 'chinitsu'],
-  ['ikkitsuukan', 'junchan'],
-  ['ikkitsuukan', 'sanankou'],
-  ['ikkitsuukan', 'sankantsu'],
-  ['ikkitsuukan', 'chiitoitsu'],
-  ['ikkitsuukan', 'honroutou'],
-  ['ikkitsuukan', 'shousangen'],
-  ['ikkitsuukan', 'ryanpeikou'],
-  ['chanta', 'chiitoitsu'],
-  ['chanta', 'honroutou'],
-  ['chanta', 'junchan'],
-  ['chanta', 'chinitsu'],
-  ['junchan', 'chiitoitsu'],
-  ['junchan', 'honroutou'],
-  ['junchan', 'shousangen'],
-  ['junchan', 'honitsu'],
-  ['junchan', 'chanta'],
-  ['chiitoitsu', 'toitoihou'],
-  ['chiitoitsu', 'sanankou'],
-  ['chiitoitsu', 'sankantsu'],
-  ['chiitoitsu', 'shousangen'],
-  ['toitoihou', 'sanshokudoujun'],
-  ['toitoihou', 'ikkitsuukan'],
-  ['sanankou', 'sanshokudoujun'],
-  ['sanankou', 'ikkitsuukan'],
-  ['sankantsu', 'sanshokudoujun'],
-  ['sankantsu', 'ikkitsuukan'],
-  ['shousangen', 'chinitsu'],
-  ['honitsu', 'chinitsu'],
-  ['chinitsu', 'honroutou'],
-];
+const MAX_DORA = 20;
 
 const DEFAULT_GAME_STATE: GameState = {
   selectedYaku: [],
@@ -144,42 +75,10 @@ const DEFAULT_FU_ASSISTANT_STATE: FuAssistantState = {
   specialCase: 'none',
 };
 
-const AUTO_TSUMO_YAKU_ID = 'tsumo';
-
-function buildIncompatibleMap(pairs: Array<[string, string]>): Map<string, Set<string>> {
-  const map = new Map<string, Set<string>>();
-  const add = (a: string, b: string) => {
-    if (!map.has(a)) {
-      map.set(a, new Set());
-    }
-    map.get(a)?.add(b);
-  };
-
-  pairs.forEach(([a, b]) => {
-    add(a, b);
-    add(b, a);
-  });
-
-  return map;
-}
-
-const INCOMPATIBLE_MAP = buildIncompatibleMap(INCOMPATIBLE_PAIRS);
-
-function EmptyScoreCard({ mode }: { mode: AppMode }) {
-  return (
-    <div className={`rounded-xl p-8 text-center shadow-xl backdrop-blur-sm ${mode === 'manual' ? 'border border-blue-200/40 bg-blue-950/25' : 'border border-emerald-700 bg-emerald-800/50'}`}>
-      <Calculator className={`mx-auto mb-4 h-16 w-16 ${mode === 'manual' ? 'text-blue-100' : 'text-emerald-600'}`} />
-      <p className={`text-lg ${mode === 'manual' ? 'text-white' : 'text-emerald-200'}`}>
-        {mode === 'manual' ? '翻数と符を入力してください' : '役を選択してください'}
-      </p>
-      <p className={`mt-2 text-sm ${mode === 'manual' ? 'text-blue-100/75' : 'text-emerald-400'}`}>
-        {mode === 'manual'
-          ? '下段の符計算補助を使うと、上段の符へ自動反映されます'
-          : 'あがり方と役を選ぶと自動で点数を計算します'}
-      </p>
-    </div>
-  );
-}
+const S_RANK_YAKU = getCategoryYaku('S').filter((yaku) => yaku.id !== MENZEN_TSUMO_YAKU_ID);
+const A_RANK_YAKU = getCategoryYaku('A');
+const B_RANK_YAKU = getCategoryYaku('B');
+const C_RANK_YAKU = getCategoryYaku('C');
 
 function App() {
   const [topTab, setTopTab] = useState<TopTab>('calc');
@@ -191,57 +90,43 @@ function App() {
     DEFAULT_FU_ASSISTANT_STATE,
   );
 
-  const hasDaisangen =
-    gameState.selectedYaku.includes('haku') &&
-    gameState.selectedYaku.includes('hatsu') &&
-    gameState.selectedYaku.includes('chun');
-
-  const hasYakuman = gameState.selectedYaku.includes('yakuman') || hasDaisangen;
-
-  const isIncompatibleWithSelected = (yakuId: string, selectedYaku: string[]) => {
-    const incompatible = INCOMPATIBLE_MAP.get(yakuId);
-    if (!incompatible) return false;
-    return selectedYaku.some((selectedId) => incompatible.has(selectedId));
-  };
+  const hasYakuman = isYakumanSelected(gameState.selectedYaku);
 
   const toggleYaku = (yakuId: string) => {
-    setGameState((prev) => ({
-      ...prev,
-      selectedYaku: prev.selectedYaku.includes(yakuId)
-        ? prev.selectedYaku.filter((id) => id !== yakuId)
-        : (() => {
-            if (yakuId === 'yakuman') {
-              return ['yakuman'];
-            }
-            const incompatible = INCOMPATIBLE_MAP.get(yakuId) ?? new Set<string>();
-            const cleaned = prev.selectedYaku.filter((id) => !incompatible.has(id));
-            return [...cleaned, yakuId];
-          })(),
-    }));
+    setGameState((prev) => {
+      if (prev.selectedYaku.includes(yakuId)) {
+        return { ...prev, selectedYaku: prev.selectedYaku.filter((id) => id !== yakuId) };
+      }
+      if (yakuId === YAKUMAN_YAKU_ID) {
+        return { ...prev, selectedYaku: [YAKUMAN_YAKU_ID] };
+      }
+      const incompatible = getIncompatibleYakuIds(yakuId);
+      const cleaned = prev.selectedYaku.filter((id) => !incompatible.has(id));
+      return { ...prev, selectedYaku: [...cleaned, yakuId] };
+    });
   };
 
   const setYakuWinMethod = (method: WinMethod) => {
-    setGameState((prev) => {
-      const newState = { ...prev, winMethod: method };
-      if (method === 'ron' && prev.selectedYaku.includes('tsumo')) {
-        newState.selectedYaku = prev.selectedYaku.filter((id) => id !== 'tsumo');
-      }
-      return newState;
-    });
+    setGameState((prev) => ({
+      ...prev,
+      winMethod: method,
+      selectedYaku:
+        method === 'ron'
+          ? prev.selectedYaku.filter((id) => id !== MENZEN_TSUMO_YAKU_ID)
+          : prev.selectedYaku,
+    }));
   };
 
   const toggleYakuNaki = () => {
     setGameState((prev) => {
       const newHasNaki = !prev.hasNaki;
       const menzenOnlyYaku = YAKU_LIST.filter((yaku) => yaku.menzenOnly).map((yaku) => yaku.id);
-      const newSelectedYaku = newHasNaki
-        ? prev.selectedYaku.filter((id) => !menzenOnlyYaku.includes(id))
-        : prev.selectedYaku;
-
       return {
         ...prev,
         hasNaki: newHasNaki,
-        selectedYaku: newSelectedYaku,
+        selectedYaku: newHasNaki
+          ? prev.selectedYaku.filter((id) => !menzenOnlyYaku.includes(id))
+          : prev.selectedYaku,
       };
     });
   };
@@ -253,7 +138,7 @@ function App() {
   const incrementDora = () => {
     setGameState((prev) => ({
       ...prev,
-      doraCount: prev.doraCount + 1,
+      doraCount: Math.min(MAX_DORA, prev.doraCount + 1),
     }));
   };
 
@@ -265,6 +150,13 @@ function App() {
   };
 
   const yakuScore = useMemo(() => calculateScore(gameState), [gameState]);
+  const yakuWarning =
+    !yakuScore && gameState.doraCount > 0 && !hasYaku(gameState)
+      ? {
+          title: '役がありません',
+          detail: 'ドラは役ではないため、ドラだけではアガれません。役を1つ以上選んでください。',
+        }
+      : null;
 
   const fuAssistantResult = useMemo(
     () =>
@@ -305,8 +197,20 @@ function App() {
     setFuAssistantState((prev) => sanitizeFuAssistantState(prev, { hasNaki: manualState.hasNaki }));
   }, [manualState.hasNaki]);
 
-  const manualScore = useMemo(() => {
+  const manualError = useMemo(() => {
     if (manualState.han == null || manualState.fu == null) {
+      return null;
+    }
+    return getHanFuError({
+      han: manualState.han,
+      fu: manualState.fu,
+      hasNaki: manualState.hasNaki,
+      winMethod: manualState.winMethod,
+    });
+  }, [manualState]);
+
+  const manualScore = useMemo(() => {
+    if (manualState.han == null || manualState.fu == null || manualError) {
       return null;
     }
 
@@ -316,7 +220,7 @@ function App() {
       isOya: manualState.isOya,
       winMethod: manualState.winMethod,
     });
-  }, [manualState]);
+  }, [manualState, manualError]);
 
   const updateManualState = <K extends keyof ManualState>(key: K, value: ManualState[K]) => {
     setManualState((prev) => ({
@@ -359,34 +263,27 @@ function App() {
   const isYakuDisabled = (yakuId: string) => {
     const yaku = YAKU_LIST.find((item) => item.id === yakuId);
     if (!yaku) return false;
+    if (gameState.selectedYaku.includes(yakuId)) return false;
     if (yaku.menzenOnly && gameState.hasNaki) return true;
-    if (yakuId === 'tsumo' && gameState.winMethod === 'ron') return true;
-    if (hasYakuman && !gameState.selectedYaku.includes(yakuId) && yakuId !== 'yakuman') {
-      return true;
-    }
-    if (
-      !gameState.selectedYaku.includes(yakuId) &&
-      isIncompatibleWithSelected(yakuId, gameState.selectedYaku)
-    ) {
-      return true;
-    }
-    return false;
+    if (yakuId === MENZEN_TSUMO_YAKU_ID && gameState.winMethod === 'ron') return true;
+    if (hasYakuman && yakuId !== YAKUMAN_YAKU_ID) return true;
+    return isIncompatibleWithSelected(yakuId, gameState.selectedYaku);
   };
 
-  const sRankYaku = getCategoryYaku('S').filter((yaku) => yaku.id !== AUTO_TSUMO_YAKU_ID);
-  const aRankYaku = getCategoryYaku('A');
-  const bRankYaku = getCategoryYaku('B');
-  const cRankYaku = getCategoryYaku('C');
-  const visibleSelectedYaku = gameState.selectedYaku.filter((yakuId) => yakuId !== AUTO_TSUMO_YAKU_ID);
   const currentScore = mode === 'manual' ? manualScore : yakuScore;
   const currentWinMethod = mode === 'manual' ? manualState.winMethod : gameState.winMethod;
+  const currentWarning =
+    mode === 'manual'
+      ? manualError
+        ? { title: 'この翻数・符の組み合わせはありません', detail: manualError }
+        : null
+      : yakuWarning;
   const pageBackgroundClass =
     topTab === 'records'
       ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950'
       : mode === 'manual'
         ? 'bg-gradient-to-br from-[#2D71E2] via-[#245fc2] to-[#1d4fa1]'
         : 'bg-gradient-to-br from-emerald-950 via-emerald-900 to-green-950';
-  const containerTextClass = mode === 'manual' ? 'text-white' : 'text-white';
   const headerSubTextClass =
     topTab === 'records'
       ? 'text-white/70'
@@ -400,6 +297,20 @@ function App() {
         ? 'text-blue-100/80'
         : 'text-emerald-300';
 
+  const renderScore = (variant: 'yaku' | 'manual') =>
+    currentScore ? (
+      <ScoreDisplay score={currentScore} winMethod={currentWinMethod} variant={variant} />
+    ) : (
+      <EmptyScoreCard mode={mode} warning={currentWarning} />
+    );
+
+  const yakuSectionProps = {
+    selectedYaku: gameState.selectedYaku,
+    hasNaki: gameState.hasNaki,
+    isYakuDisabled,
+    onToggleYaku: toggleYaku,
+  };
+
   return (
     <div className={`min-h-screen ${pageBackgroundClass}`}>
       <div className="container mx-auto max-w-6xl px-3 py-4 sm:px-4 sm:py-6">
@@ -410,7 +321,7 @@ function App() {
           <div className="pr-28 text-left sm:pr-0 sm:text-center">
             <div className="mb-2 flex items-center justify-start gap-2 sm:justify-center sm:gap-3">
               <Calculator className="h-8 w-8 text-amber-400 sm:h-10 sm:w-10" />
-              <h1 className={`text-2xl font-bold sm:text-4xl md:text-5xl ${containerTextClass}`}>麻雀点数ナビ</h1>
+              <h1 className="text-2xl font-bold text-white sm:text-4xl md:text-5xl">麻雀点数ナビ</h1>
             </div>
             <p className={`text-sm md:text-base ${headerSubTextClass}`}>
               役からでも、翻数と符からでも、すぐに点数を確認。
@@ -421,7 +332,11 @@ function App() {
         <TopTabs active={topTab} onChange={setTopTab} />
 
         {topTab === 'records' ? (
-          <RecordsView />
+          <Suspense
+            fallback={<p className="py-12 text-center text-sm text-white/70">読み込み中…</p>}
+          >
+            <RecordsView />
+          </Suspense>
         ) : (
         <>
         <ModeTabs activeMode={mode} onChange={setMode} />
@@ -431,171 +346,57 @@ function App() {
             {mode === 'yaku' ? (
               <>
                 <div className="flex flex-col gap-6 lg:flex-row">
-                  <div className="flex-1 rounded-xl border border-emerald-700 bg-emerald-800/50 p-4 shadow-xl backdrop-blur-sm sm:p-6">
-                    <div className="mb-4 grid grid-cols-2 gap-3 sm:mb-6">
-                      <button
-                        onClick={() => setYakuWinMethod('tsumo')}
-                        className={`w-full rounded-lg px-4 py-3 text-base font-bold transition-all duration-200 sm:px-6 sm:text-lg ${
-                          gameState.winMethod === 'tsumo'
-                            ? 'scale-[1.02] border-2 border-rose-300 bg-rose-200 text-rose-950 shadow-lg'
-                            : 'border-2 border-emerald-800 bg-emerald-700 text-white hover:bg-emerald-600'
-                        }`}
-                      >
-                        ツモ
-                      </button>
-                      <button
-                        onClick={() => setYakuWinMethod('ron')}
-                        className={`w-full rounded-lg px-4 py-3 text-base font-bold transition-all duration-200 sm:px-6 sm:text-lg ${
-                          gameState.winMethod === 'ron'
-                            ? 'scale-[1.02] border-2 border-red-700 bg-red-600 text-white shadow-lg'
-                            : 'border-2 border-emerald-800 bg-emerald-700 text-white hover:bg-emerald-600'
-                        }`}
-                      >
-                        ロン
-                      </button>
-                    </div>
+                  <YakuModeControls
+                    gameState={gameState}
+                    onWinMethodChange={setYakuWinMethod}
+                    onToggleNaki={toggleYakuNaki}
+                    onToggleOya={() => setGameState((prev) => ({ ...prev, isOya: !prev.isOya }))}
+                    onReset={resetYakuMode}
+                  />
 
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                      <button
-                        onClick={toggleYakuNaki}
-                        className={`col-span-2 rounded-lg px-4 py-3 font-medium transition-all duration-200 sm:col-span-1 ${
-                          gameState.hasNaki
-                            ? 'scale-[1.02] border-2 border-amber-600 bg-amber-500 text-white shadow-lg'
-                            : 'border-2 border-emerald-800 bg-emerald-700 text-white hover:bg-emerald-600'
-                        }`}
-                      >
-                        {gameState.hasNaki ? '鳴きあり' : '鳴きなし（メンゼン）'}
-                      </button>
-                      <button
-                        onClick={() =>
-                          setGameState((prev) => ({
-                            ...prev,
-                            isOya: !prev.isOya,
-                          }))
-                        }
-                        className={`rounded-lg px-4 py-3 font-medium transition-all duration-200 ${
-                          gameState.isOya
-                            ? 'border-2 border-purple-700 bg-purple-600 text-white shadow-lg'
-                            : 'border-2 border-emerald-800 bg-emerald-700 text-white hover:bg-emerald-600'
-                        }`}
-                      >
-                        {gameState.isOya ? '親' : '子'}
-                      </button>
-                      <button
-                        onClick={resetYakuMode}
-                        className="col-span-2 flex items-center justify-center gap-2 rounded-lg border-2 border-gray-800 bg-gray-700 px-4 py-3 font-medium text-white transition-all duration-200 hover:bg-gray-600 sm:col-span-1"
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                        リセット
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="min-w-0 flex-1 lg:hidden">
-                    {currentScore ? (
-                      <ScoreDisplay
-                        score={currentScore}
-                        winMethod={currentWinMethod}
-                        variant="yaku"
-                      />
-                    ) : (
-                      <EmptyScoreCard mode={mode} />
-                    )}
-                  </div>
+                  <div className="min-w-0 flex-1 lg:hidden">{renderScore('yaku')}</div>
                 </div>
 
-                <div className="rounded-xl border border-emerald-700 bg-emerald-800/50 p-4 shadow-xl backdrop-blur-sm sm:p-6">
-                  <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-400 sm:text-xl">
-                    <span className="rounded-full bg-amber-500 px-3 py-1 text-sm text-white">S</span>
-                    頻出役
-                  </h2>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {sRankYaku.slice(0, 2).map((yaku) => (
-                      <YakuButton
-                        key={yaku.id}
-                        yaku={yaku}
-                        isSelected={gameState.selectedYaku.includes(yaku.id)}
-                        isDisabled={isYakuDisabled(yaku.id)}
-                        onClick={() => toggleYaku(yaku.id)}
-                        hasNaki={gameState.hasNaki}
-                      />
-                    ))}
-                    <div className="sm:col-span-2">
+                <YakuSection
+                  {...yakuSectionProps}
+                  rankLabel="S"
+                  rankBadgeClass="bg-amber-500"
+                  title="頻出役"
+                  yakuList={S_RANK_YAKU}
+                  insertBefore={{
+                    index: 2,
+                    node: (
                       <DoraCounter
                         count={gameState.doraCount}
+                        max={MAX_DORA}
                         onIncrement={incrementDora}
                         onDecrement={decrementDora}
                       />
-                    </div>
-                    {sRankYaku.slice(2).map((yaku) => (
-                      <YakuButton
-                        key={yaku.id}
-                        yaku={yaku}
-                        isSelected={gameState.selectedYaku.includes(yaku.id)}
-                        isDisabled={isYakuDisabled(yaku.id)}
-                        onClick={() => toggleYaku(yaku.id)}
-                        hasNaki={gameState.hasNaki}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-emerald-700 bg-emerald-800/50 p-4 shadow-xl backdrop-blur-sm sm:p-6">
-                  <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-400 sm:text-xl">
-                    <span className="rounded-full bg-blue-500 px-3 py-1 text-sm text-white">A</span>
-                    中級役
-                  </h2>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {aRankYaku.map((yaku) => (
-                      <YakuButton
-                        key={yaku.id}
-                        yaku={yaku}
-                        isSelected={gameState.selectedYaku.includes(yaku.id)}
-                        isDisabled={isYakuDisabled(yaku.id)}
-                        onClick={() => toggleYaku(yaku.id)}
-                        hasNaki={gameState.hasNaki}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-emerald-700 bg-emerald-800/50 p-4 shadow-xl backdrop-blur-sm sm:p-6">
-                  <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-400 sm:text-xl">
-                    <span className="rounded-full bg-green-500 px-3 py-1 text-sm text-white">B</span>
-                    上級役
-                  </h2>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {bRankYaku.map((yaku) => (
-                      <YakuButton
-                        key={yaku.id}
-                        yaku={yaku}
-                        isSelected={gameState.selectedYaku.includes(yaku.id)}
-                        isDisabled={isYakuDisabled(yaku.id)}
-                        onClick={() => toggleYaku(yaku.id)}
-                        hasNaki={gameState.hasNaki}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-emerald-700 bg-emerald-800/50 p-4 shadow-xl backdrop-blur-sm sm:p-6">
-                  <h2 className="mb-4 flex items-center gap-2 text-lg font-bold text-amber-400 sm:text-xl">
-                    <span className="rounded-full bg-red-500 px-3 py-1 text-sm text-white">C</span>
-                    役満
-                  </h2>
-                  <div className="grid grid-cols-1 gap-3">
-                    {cRankYaku.map((yaku) => (
-                      <YakuButton
-                        key={yaku.id}
-                        yaku={yaku}
-                        isSelected={gameState.selectedYaku.includes(yaku.id)}
-                        isDisabled={isYakuDisabled(yaku.id)}
-                        onClick={() => toggleYaku(yaku.id)}
-                        hasNaki={gameState.hasNaki}
-                      />
-                    ))}
-                  </div>
-                </div>
+                    ),
+                  }}
+                />
+                <YakuSection
+                  {...yakuSectionProps}
+                  rankLabel="A"
+                  rankBadgeClass="bg-blue-500"
+                  title="中級役"
+                  yakuList={A_RANK_YAKU}
+                />
+                <YakuSection
+                  {...yakuSectionProps}
+                  rankLabel="B"
+                  rankBadgeClass="bg-green-500"
+                  title="上級役"
+                  yakuList={B_RANK_YAKU}
+                />
+                <YakuSection
+                  {...yakuSectionProps}
+                  rankLabel="C"
+                  rankBadgeClass="bg-red-500"
+                  title="役満"
+                  yakuList={C_RANK_YAKU}
+                  singleColumn
+                />
               </>
             ) : (
               <>
@@ -612,17 +413,7 @@ function App() {
                   onReset={resetManualMode}
                 />
 
-                <div className="lg:hidden">
-                  {currentScore ? (
-                    <ScoreDisplay
-                      score={currentScore}
-                      winMethod={currentWinMethod}
-                      variant="manual"
-                    />
-                  ) : (
-                    <EmptyScoreCard mode={mode} />
-                  )}
-                </div>
+                <div className="lg:hidden">{renderScore('manual')}</div>
 
                 <FuAssistant
                   state={fuAssistantState}
@@ -639,91 +430,11 @@ function App() {
 
           <div className="lg:col-span-1">
             <div className="sticky top-6 hidden lg:block">
-              {currentScore ? (
-                <ScoreDisplay
-                  score={currentScore}
-                  winMethod={currentWinMethod}
-                  variant={mode === 'manual' ? 'manual' : 'yaku'}
-                />
-              ) : (
-                <EmptyScoreCard mode={mode} />
-              )}
+              {renderScore(mode)}
 
-              {mode === 'yaku' &&
-                (visibleSelectedYaku.length > 0 ||
-                  gameState.doraCount > 0 ||
-                  (gameState.winMethod === 'tsumo' && !gameState.hasNaki)) && (
-                  <div className="mt-6 hidden rounded-xl border border-emerald-700 bg-emerald-800/50 p-6 shadow-xl backdrop-blur-sm lg:block">
-                    <h3 className="mb-3 text-sm font-bold text-amber-400">選択中の役</h3>
-                    <div className="space-y-2">
-                      {visibleSelectedYaku.map((yakuId) => {
-                        const yaku = YAKU_LIST.find((item) => item.id === yakuId);
-                        const displayHan =
-                          gameState.hasNaki && yaku?.kuisagari ? yaku.han - 1 : yaku?.han;
-                        return (
-                          <div
-                            key={yakuId}
-                            className="flex items-center justify-between rounded-lg bg-emerald-900/50 px-3 py-2"
-                          >
-                            <span className="text-sm text-white">{yaku?.name}</span>
-                            <span className="text-xs font-bold text-amber-300">{displayHan}翻</span>
-                          </div>
-                        );
-                      })}
-                      {hasDaisangen && (
-                        <div className="flex items-center justify-between rounded-lg border border-red-500/30 bg-red-900/30 px-3 py-2">
-                          <span className="text-sm text-white">大三元（役満）</span>
-                          <span className="text-xs font-bold text-amber-300">役満</span>
-                        </div>
-                      )}
-                      {gameState.winMethod === 'tsumo' &&
-                        !gameState.hasNaki && (
-                          <div className="flex items-center justify-between rounded-lg bg-emerald-900/50 px-3 py-2">
-                            <span className="text-sm text-white">門前清自摸和（ツモ）</span>
-                            <span className="text-xs font-bold text-amber-300">1翻</span>
-                          </div>
-                        )}
-                      {gameState.doraCount > 0 && (
-                        <div className="flex items-center justify-between rounded-lg bg-emerald-900/50 px-3 py-2">
-                          <span className="text-sm text-white">ドラ</span>
-                          <span className="text-xs font-bold text-amber-300">
-                            {gameState.doraCount}翻
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+              {mode === 'yaku' && <SelectedYakuSummary gameState={gameState} />}
 
-              {mode === 'manual' && (
-                <div className="mt-6 rounded-xl border border-blue-200/40 bg-blue-950/25 p-6 shadow-xl backdrop-blur-sm">
-                  <h3 className="mb-3 text-sm font-bold text-amber-400">マニュアル入力の状態</h3>
-                  <div className="space-y-2 text-sm text-blue-50">
-                    <div className="flex items-center justify-between rounded-lg bg-white/10 px-3 py-2">
-                      <span>あがり方</span>
-                      <span>{manualState.winMethod === 'tsumo' ? 'ツモ' : 'ロン'}</span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg bg-white/10 px-3 py-2">
-                      <span>状態</span>
-                      <span>
-                        {manualState.isOya ? '親' : '子'} /{' '}
-                        {manualState.hasNaki ? '鳴きあり' : '門前'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg bg-white/10 px-3 py-2">
-                      <span>翻数</span>
-                      <span>{manualState.han ? `${manualState.han}翻` : '未選択'}</span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg bg-white/10 px-3 py-2">
-                      <span>符</span>
-                      <span>
-                        {manualState.fu ? `${manualState.fu}符` : '未選択'}{' '}
-                        {manualState.fuSource === 'assistant' ? '（補助反映）' : '（手動）'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {mode === 'manual' && <ManualStatusPanel manualState={manualState} />}
             </div>
           </div>
         </div>

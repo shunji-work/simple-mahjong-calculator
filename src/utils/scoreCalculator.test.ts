@@ -3,6 +3,8 @@ import {
   calculateFuFromAssistant,
   calculateScore,
   calculateScoreFromHanFu,
+  getHanFuError,
+  hasYaku,
   getMaxRemainingMeldSlots,
   sanitizeFuAssistantState,
   validateFuAssistantInput,
@@ -33,7 +35,7 @@ describe('calculateScoreFromHanFu', () => {
         winMethod: 'ron',
       }),
     ).toMatchObject({
-      ronPay: 1000,
+      totalPay: 1000,
       scoreName: '1翻30符',
     });
   });
@@ -47,7 +49,7 @@ describe('calculateScoreFromHanFu', () => {
         winMethod: 'ron',
       }),
     ).toMatchObject({
-      ronPay: 3900,
+      totalPay: 3900,
       scoreName: '2翻40符',
     });
   });
@@ -63,7 +65,7 @@ describe('calculateScoreFromHanFu', () => {
     ).toMatchObject({
       oyaPay: 700,
       koPay: 400,
-      ronPay: 1500,
+      totalPay: 1500,
       scoreName: '2翻20符',
     });
   });
@@ -77,9 +79,9 @@ describe('calculateScoreFromHanFu', () => {
         winMethod: 'tsumo',
       }),
     ).toMatchObject({
-      oyaPay: 2000,
+      isOya: true,
       koPay: 2000,
-      ronPay: 6000,
+      totalPay: 6000,
       scoreName: '3翻30符',
     });
   });
@@ -93,7 +95,7 @@ describe('calculateScoreFromHanFu', () => {
         winMethod: 'ron',
       }),
     ).toMatchObject({
-      ronPay: 8000,
+      totalPay: 8000,
       scoreName: '満貫',
     });
   });
@@ -107,7 +109,7 @@ describe('calculateScoreFromHanFu', () => {
         winMethod: 'ron',
       }),
     ).toMatchObject({
-      ronPay: 8000,
+      totalPay: 8000,
       scoreName: '満貫',
     });
   });
@@ -121,7 +123,7 @@ describe('calculateScoreFromHanFu', () => {
         winMethod: 'ron',
       }),
     ).toMatchObject({
-      ronPay: 8000,
+      totalPay: 8000,
       scoreName: '満貫',
     });
   });
@@ -135,7 +137,7 @@ describe('calculateScoreFromHanFu', () => {
         winMethod: 'ron',
       }),
     ).toMatchObject({
-      ronPay: 8000,
+      totalPay: 8000,
       scoreName: '満貫',
     });
   });
@@ -149,8 +151,9 @@ describe('calculateScoreFromHanFu', () => {
         winMethod: 'tsumo',
       }),
     ).toMatchObject({
-      oyaPay: 4000,
       koPay: 4000,
+      totalPay: 12000,
+      basePoints: 2000,
       scoreName: '満貫',
     });
 
@@ -162,9 +165,44 @@ describe('calculateScoreFromHanFu', () => {
         winMethod: 'ron',
       }),
     ).toMatchObject({
-      ronPay: 32000,
-      scoreName: '役満',
+      totalPay: 32000,
+      scoreName: '数え役満',
     });
+  });
+
+  it.each([
+    { han: 6, name: '跳満', ron: 12000, oyaRon: 18000 },
+    { han: 8, name: '倍満', ron: 16000, oyaRon: 24000 },
+    { han: 11, name: '三倍満', ron: 24000, oyaRon: 36000 },
+    { han: 13, name: '数え役満', ron: 32000, oyaRon: 48000 },
+  ])('calculates $name ($han翻)', ({ han, name, ron, oyaRon }) => {
+    expect(
+      calculateScoreFromHanFu({ han, fu: 30, isOya: false, winMethod: 'ron' }),
+    ).toMatchObject({ totalPay: ron, scoreName: name });
+    expect(
+      calculateScoreFromHanFu({ han, fu: 30, isOya: true, winMethod: 'ron' }),
+    ).toMatchObject({ totalPay: oyaRon, scoreName: name });
+  });
+});
+
+describe('getHanFuError', () => {
+  const base = { han: 2, hasNaki: false, winMethod: 'tsumo' as const };
+
+  it('accepts valid combinations', () => {
+    expect(getHanFuError({ ...base, fu: 20 })).toBeNull();
+    expect(getHanFuError({ ...base, fu: 25, winMethod: 'ron' })).toBeNull();
+    expect(getHanFuError({ ...base, han: 1, fu: 30, hasNaki: true, winMethod: 'ron' })).toBeNull();
+  });
+
+  it('rejects 20符 outside menzen tsumo pinfu', () => {
+    expect(getHanFuError({ ...base, fu: 20, winMethod: 'ron' })).toContain('ロン');
+    expect(getHanFuError({ ...base, fu: 20, hasNaki: true })).toContain('鳴き');
+    expect(getHanFuError({ ...base, fu: 20, han: 1 })).toContain('2翻');
+  });
+
+  it('rejects 25符 outside menzen chiitoitsu', () => {
+    expect(getHanFuError({ ...base, fu: 25, hasNaki: true })).toContain('鳴き');
+    expect(getHanFuError({ ...base, fu: 25, han: 1 })).toContain('1翻');
   });
 });
 
@@ -428,7 +466,7 @@ describe('calculateScore (yaku mode)', () => {
     ).toMatchObject({
       totalHan: 2,
       fu: 30,
-      ronPay: 2000,
+      totalPay: 2000,
       scoreName: '2翻30符',
     });
   });
@@ -445,7 +483,7 @@ describe('calculateScore (yaku mode)', () => {
       ),
     ).toMatchObject({
       totalHan: 13,
-      ronPay: 32000,
+      totalPay: 32000,
       scoreName: '大三元（役満）',
     });
   });
@@ -464,6 +502,80 @@ describe('calculateScore (yaku mode)', () => {
       oyaPay: 16000,
       koPay: 8000,
       scoreName: '役満',
+    });
+  });
+
+  it('ignores kuisagari for yakuman', () => {
+    expect(
+      calculateScore(
+        buildState({
+          selectedYaku: ['yakuman', 'chinitsu'],
+          hasNaki: true,
+          winMethod: 'ron',
+        }),
+      ),
+    ).toMatchObject({
+      totalHan: 13,
+      totalPay: 32000,
+      scoreName: '役満',
+    });
+  });
+
+  it('ignores kuisagari for daisangen with honitsu and chanta', () => {
+    expect(
+      calculateScore(
+        buildState({
+          selectedYaku: ['haku', 'hatsu', 'chun', 'honitsu', 'chanta'],
+          hasNaki: true,
+          winMethod: 'ron',
+        }),
+      ),
+    ).toMatchObject({
+      totalHan: 13,
+      totalPay: 32000,
+      scoreName: '大三元（役満）',
+    });
+  });
+
+  it('applies kuisagari to every eligible yaku', () => {
+    expect(
+      calculateScore(
+        buildState({
+          selectedYaku: ['honitsu', 'ikkitsuukan'],
+          hasNaki: true,
+          winMethod: 'ron',
+        }),
+      ),
+    ).toMatchObject({
+      totalHan: 3,
+      totalPay: 3900,
+    });
+  });
+
+  it('returns null when only dora is selected (no yaku)', () => {
+    const ronWithDoraOnly = buildState({ doraCount: 2, winMethod: 'ron' });
+    expect(hasYaku(ronWithDoraOnly)).toBe(false);
+    expect(calculateScore(ronWithDoraOnly)).toBeNull();
+
+    const openTsumoWithDoraOnly = buildState({ doraCount: 1, winMethod: 'tsumo', hasNaki: true });
+    expect(calculateScore(openTsumoWithDoraOnly)).toBeNull();
+  });
+
+  it('treats menzen tsumo as a yaku even without selection', () => {
+    expect(
+      calculateScore(buildState({ doraCount: 1, winMethod: 'tsumo', hasNaki: false })),
+    ).toMatchObject({ totalHan: 2 });
+  });
+
+  it('shows oya tsumo as all-pay', () => {
+    const score = calculateScore(
+      buildState({ selectedYaku: ['riichi'], isOya: true, winMethod: 'tsumo' }),
+    );
+    expect(score).not.toHaveProperty('oyaPay');
+    expect(score).toMatchObject({
+      isOya: true,
+      koPay: 1000,
+      totalPay: 3000,
     });
   });
 });

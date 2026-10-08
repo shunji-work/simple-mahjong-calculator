@@ -9,7 +9,7 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: 'npm.cmd run dev -- --host 127.0.0.1 --port 4175',
+    command: 'npm run dev -- --host 127.0.0.1 --port 4175',
     url: 'http://127.0.0.1:4175',
     reuseExistingServer: true,
     timeout: 120000,

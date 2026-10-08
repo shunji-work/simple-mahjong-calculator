@@ -1,5 +1,6 @@
 import React from 'react';
 import { Yaku } from '../types/mahjong';
+import { getEffectiveHan } from '../data/yakuRules';
 
 interface YakuButtonProps {
   yaku: Yaku;
@@ -16,7 +17,7 @@ export const YakuButton: React.FC<YakuButtonProps> = ({
   onClick,
   hasNaki = false,
 }) => {
-  const displayHan = hasNaki && yaku.kuisagari ? yaku.han - 1 : yaku.han;
+  const displayHan = getEffectiveHan(yaku, hasNaki);
   const isKuisagariActive = hasNaki && !!yaku.kuisagari;
 
   return (

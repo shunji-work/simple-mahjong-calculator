@@ -3,17 +3,19 @@ import { Plus, Minus } from 'lucide-react';
 
 interface DoraCounterProps {
   count: number;
+  max: number;
   onIncrement: () => void;
   onDecrement: () => void;
 }
 
 export const DoraCounter: React.FC<DoraCounterProps> = ({
   count,
+  max,
   onIncrement,
   onDecrement,
 }) => {
   return (
-    <div className="w-full rounded-lg border-2 border-emerald-900 bg-emerald-800 p-4 shadow-md">
+    <div data-testid="dora-counter" className="w-full rounded-lg border-2 border-emerald-900 bg-emerald-800 p-4 shadow-md">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex-1">
           <p className="text-white font-medium text-sm mb-1">ドラ</p>
@@ -39,7 +41,12 @@ export const DoraCounter: React.FC<DoraCounterProps> = ({
 
           <button
             onClick={onIncrement}
-            className="w-10 h-10 rounded-lg flex items-center justify-center bg-green-600 text-white hover:bg-green-700 hover:scale-105 transition-all duration-200 shadow-md"
+            disabled={count >= max}
+            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 ${
+              count >= max
+                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                : 'bg-green-600 text-white hover:bg-green-700 hover:scale-105 shadow-md'
+            }`}
           >
             <Plus className="w-5 h-5" />
           </button>

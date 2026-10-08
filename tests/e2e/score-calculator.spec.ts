@@ -47,6 +47,43 @@ test.describe('mahjong score calculator', () => {
     await expect(page.locator(visibleText('32,000')).first()).toBeVisible();
   });
 
+  test('keeps yakuman points when kuisagari yaku are also selected', async ({ page }) => {
+    await page.goto('/');
+
+    await page.getByRole('button', { name: 'ロン' }).first().click();
+    await page.getByRole('button', { name: /鳴きなし|門前/ }).click();
+    await page.getByTestId('yaku-honitsu').click();
+    await page.getByTestId('yaku-chanta').click();
+    await page.getByTestId('yaku-haku').click();
+    await page.getByTestId('yaku-hatsu').click();
+    await page.getByTestId('yaku-chun').click();
+
+    await expect(page.locator(visibleParagraph('13翻 30符'))).toBeVisible();
+    await expect(page.locator(visibleText('32,000')).first()).toBeVisible();
+    await expect(page.locator(visibleText('三倍満'))).toHaveCount(0);
+  });
+
+  test('warns when only dora is selected', async ({ page }) => {
+    await page.goto('/');
+
+    await page.getByRole('button', { name: 'ロン' }).first().click();
+    await page.getByTestId('dora-counter').getByRole('button').last().click();
+
+    await expect(page.locator(visibleText('役がありません')).first()).toBeVisible();
+
+    await page.getByTestId('yaku-riichi').click();
+    await expect(page.locator(visibleParagraph('2翻 40符'))).toBeVisible();
+  });
+
+  test('shows oya tsumo as all-pay', async ({ page }) => {
+    await page.goto('/');
+
+    await page.getByRole('button', { name: '子', exact: true }).click();
+    await page.getByTestId('yaku-riichi').click();
+
+    await expect(page.locator(visibleText('1,000点オール')).first()).toBeVisible();
+  });
+
   test('updates manual mode score from fu assistant inputs', async ({ page }) => {
     await page.goto('/');
 
@@ -61,7 +98,12 @@ test.describe('mahjong score calculator', () => {
 
     await page.getByRole('button', { name: '七対子' }).click();
     await expect(page.getByText('上段の符へ 25符 を反映しています。')).toBeVisible();
-    await expect(page.locator(visibleParagraph('1翻 25符'))).toBeVisible();
+    // 七対子だけで2翻あるため、1翻25符は存在しない組み合わせとして警告する
+    await expect(page.locator(visibleText('この翻数・符の組み合わせはありません')).first()).toBeVisible();
+
+    await page.getByTestId('manual-han-stepper').getByRole('button').last().click();
+    await expect(page.locator(visibleParagraph('2翻 25符'))).toBeVisible();
+    await expect(page.locator(visibleText('1,600')).first()).toBeVisible();
   });
 
   test('prevents adding more than four melds', async ({ page }) => {

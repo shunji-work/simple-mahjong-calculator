@@ -7,6 +7,21 @@ interface ScoreDisplayProps {
   variant?: 'yaku' | 'manual';
 }
 
+function PaymentRow({ label, value, isManual }: { label: string; value: string; isManual: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-sm text-white">{label}</span>
+      <span
+        className={`text-right font-mono text-xl font-bold sm:text-2xl ${
+          isManual ? 'text-white' : 'text-amber-300'
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 export const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
   score,
   winMethod,
@@ -31,32 +46,24 @@ export const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
         </p>
       </div>
 
-      {winMethod === 'tsumo' && score.oyaPay && score.koPay ? (
+      {winMethod === 'tsumo' && score.koPay !== undefined ? (
         <div className="space-y-3">
           <div className={`rounded-lg p-4 backdrop-blur-sm ${isManual ? 'bg-blue-950/30' : 'bg-black/30'}`}>
             <p className={`mb-2 text-sm font-medium ${isManual ? 'text-blue-100' : 'text-amber-400'}`}>
               ツモ支払い
             </p>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-white">親</span>
-              <span
-                className={`text-right font-mono text-xl font-bold sm:text-2xl ${
-                  isManual ? 'text-white' : 'text-amber-300'
-                }`}
-              >
-                {score.oyaPay.toLocaleString()}点
-              </span>
-            </div>
-            <div className="mt-2 flex items-center justify-between gap-3">
-              <span className="text-sm text-white">子</span>
-              <span
-                className={`text-right font-mono text-xl font-bold sm:text-2xl ${
-                  isManual ? 'text-white' : 'text-amber-300'
-                }`}
-              >
-                {score.koPay.toLocaleString()}点
-              </span>
-            </div>
+            {score.isOya ? (
+              <PaymentRow label="子（全員）" value={`${score.koPay.toLocaleString()}点オール`} isManual={isManual} />
+            ) : (
+              <>
+                {score.oyaPay !== undefined && (
+                  <PaymentRow label="親" value={`${score.oyaPay.toLocaleString()}点`} isManual={isManual} />
+                )}
+                <div className="mt-2">
+                  <PaymentRow label="子" value={`${score.koPay.toLocaleString()}点`} isManual={isManual} />
+                </div>
+              </>
+            )}
           </div>
           <div
             className={`rounded-lg p-3 ${
@@ -74,7 +81,7 @@ export const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
                   isManual ? 'text-white' : 'text-amber-100'
                 }`}
               >
-                {score.ronPay.toLocaleString()}
+                {score.totalPay.toLocaleString()}
               </span>
             </div>
           </div>
@@ -96,10 +103,16 @@ export const ScoreDisplay: React.FC<ScoreDisplayProps> = ({
                 isManual ? 'text-white' : 'text-amber-100'
               }`}
             >
-              {score.ronPay.toLocaleString()}
+              {score.totalPay.toLocaleString()}
             </span>
           </div>
         </div>
+      )}
+
+      {!isManual && (
+        <p className="mt-3 text-[11px] leading-relaxed text-gray-400">
+          ※ 符は代表値（門前ロン40符・平和ツモ20符・七対子25符・その他30符）で計算しています。正確な符で計算したいときはマニュアルモードを使ってください。
+        </p>
       )}
     </div>
   );
