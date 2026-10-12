@@ -1,22 +1,31 @@
 // 麻雀点数ナビ Service Worker
 // - 同一オリジンの GET のみを扱い、Supabase / Turnstile / Google などのクロスオリジン通信には一切触れない
-// - ページ遷移: ネットワーク優先、オフライン時はキャッシュ済みの '/'（index.html）を返す
-// - /assets/*（ビルド時にハッシュ付きファイル名になる）: キャッシュ優先
-// キャッシュの中身を作り直したい場合は CACHE_VERSION を上げる（activate 時に古いキャッシュを削除する）
+// - インストール時に、ビルド成果物（index.html と /assets/* など）をすべて事前キャッシュする
+//   → 一度インストールされれば、初回訪問直後でも戦績タブの部品を含めてオフラインで起動できる
+// - ページ遷移・アセットともにキャッシュ優先。電波が弱くても待たずに起動する
+// - 更新: ビルドごとに sw.js の中身が変わるため、ブラウザが新しい Service Worker を見つけて裏でインストールする。
+//   開いている画面が古いファイルを読み込めなくならないよう skipWaiting はせず、
+//   アプリ（全タブ）を閉じて開き直したときに新しいバージョンへ切り替わる
 
 const CACHE_PREFIX = 'mahjong-navi-';
-const CACHE_VERSION = 'v1';
+// 以下 2 行はビルド時に vite.config.ts の precacheServiceWorker が置き換える（開発時はこのまま）
+const CACHE_VERSION = 'dev';
+const PRECACHE_URLS = [];
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 const APP_SHELL_URL = '/';
+const PRECACHE_PATHS = new Set(PRECACHE_URLS);
+// /og-image.png などのファイルを直接開いたページ遷移には index.html を返さない
+const FILE_PATH_PATTERN = /\/[^/]+\.[^/]+$/;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.add(APP_SHELL_URL))
-      // オフライン用シェルの事前キャッシュに失敗してもインストール自体は続行する
-      .catch(() => undefined)
-      .then(() => self.skipWaiting()),
+      // HTTP キャッシュに残った古い index.html と新しいアセットが混ざらないよう、必ずサーバーから取り直す。
+      // 1 つでも失敗したらインストール自体を失敗させ、次回の訪問で再試行させる（中途半端なキャッシュで動かさない）
+      .then((cache) =>
+        cache.addAll(PRECACHE_URLS.map((url) => new Request(url, { cache: 'reload' }))),
+      ),
   );
 });
 
@@ -39,25 +48,18 @@ function isCacheableResponse(response) {
   return response && response.ok && response.status === 200 && response.type === 'basic';
 }
 
-async function networkFirstNavigation(request) {
+async function appShell(request) {
   const cache = await caches.open(CACHE_NAME);
-  try {
-    const response = await fetch(request);
-    if (isCacheableResponse(response)) {
-      // SPA なのでどの URL への遷移も index.html を返す。'/' のキーで最新のシェルを保持する
-      await cache.put(APP_SHELL_URL, response.clone());
-    }
-    return response;
-  } catch (error) {
-    const cached = await cache.match(APP_SHELL_URL);
-    if (cached) return cached;
-    throw error;
-  }
+  // SPA なのでどの URL への遷移も index.html を返す（OAuth の戻り先 /?code=... なども同じ）
+  const cached = await cache.match(APP_SHELL_URL);
+  if (cached) return cached;
+  return fetch(request);
 }
 
 async function cacheFirst(request) {
   const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request);
+  // index.html の /favicon.png?v=2 のようなクエリ付き URL も事前キャッシュに当てる
+  const cached = await cache.match(request, { ignoreSearch: true });
   if (cached) return cached;
   const response = await fetch(request);
   if (isCacheableResponse(response)) {
@@ -76,11 +78,12 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
-    event.respondWith(networkFirstNavigation(request));
+    if (FILE_PATH_PATTERN.test(url.pathname)) return;
+    event.respondWith(appShell(request));
     return;
   }
 
-  if (url.pathname.startsWith('/assets/')) {
+  if (PRECACHE_PATHS.has(url.pathname) || url.pathname.startsWith('/assets/')) {
     event.respondWith(cacheFirst(request));
   }
   // それ以外の同一オリジンのリクエストは介入しない
