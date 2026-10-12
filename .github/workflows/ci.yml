@@ -21,7 +21,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # package-lock.json は npm 11（Node 24 同梱）で生成している。npm 10 だと npm ci が失敗する
+          node-version: 24
           cache: npm
 
       - run: npm ci
