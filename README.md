@@ -56,17 +56,22 @@ src/
 │   ├── RecordsChart.tsx      # 戦績グラフ
 │   ├── RecordsView.tsx       # 戦績タブ
 │   ├── ScoreDisplay.tsx      # 点数表示
-│   └── YakuButton.tsx        # 役選択ボタン
+│   ├── YakuButton.tsx        # 役選択ボタン
+│   └── ErrorBoundary.tsx     # 描画エラーの受け皿（画面が真っ白になるのを防ぐ）
 ├── contexts/                 # 認証コンテキスト
+├── hooks/
+│   ├── useYakuMode.ts        # 役選択モードの状態と操作
+│   └── useManualMode.ts      # 翻符入力モード・符計算補助の状態と操作
 ├── data/
 │   └── yaku.ts               # 役マスタ
 ├── lib/
 │   ├── games.ts              # Supabaseの対局記録CRUD
+│   ├── gameValidation.ts     # 対局記録の入力チェック
 │   └── supabaseClient.ts     # Supabaseクライアント
-├── types/                    # 型定義
+├── types/                    # 型定義（database.ts は Supabase の DB 型）
 ├── utils/
 │   └── scoreCalculator.ts    # 点数・符計算ロジック
-├── App.tsx                   # アプリ本体
+├── App.tsx                   # 画面の組み立て（状態とロジックは hooks/ に置く）
 └── main.tsx                  # エントリーポイント
 
 tests/
@@ -190,9 +195,33 @@ npm run lint
 npm run typecheck
 npm run test
 npm run test:e2e
+npm run gen:types   # Supabase の DB 型を再生成（下記参照）
 ```
 
+### CI
+
+`.github/workflows/ci.yml` で、main への push と PR のたびに
+型チェック → lint → 単体テスト → ビルド → E2E テストを実行します。
+
+### DB 型の再生成
+
+`src/types/database.ts` は Supabase の型生成と同じ形式の DB 型です。
+マイグレーションでスキーマを変えたら再生成してください。
+Supabase CLI は devDependencies に入っているので、別途インストールは不要です。
+`your-project-ref` は Supabase のプロジェクト ID（`VITE_SUPABASE_URL` の `https://<ここ>.supabase.co` の部分）に置き換えます。
+
+```bash
+npx supabase login
+SUPABASE_PROJECT_ID=your-project-ref npm run gen:types
+```
+
+生成に失敗した場合、既存の `src/types/database.ts` はそのまま残ります。
+
 ## テスト方針
+
+- `src/utils/scoreTable.test.ts`
+  - 点数早見表（1〜4翻 × 20〜110符 × 親子 × ツモロン）と満貫以上の全組み合わせの突き合わせ
+  - 実在しない翻符の組み合わせの判定
 
 - `src/utils/scoreCalculator.test.ts`
   - 翻符からの点数計算
@@ -207,11 +236,15 @@ npm run test:e2e
   - エラー処理
   - ★ 表示条件
 
+- `src/lib/gameValidation.dbSync.test.ts`
+  - アプリ側の入力チェックとマイグレーションの CHECK 制約の値が一致しているか
+
 - `tests/e2e/score-calculator.spec.ts`
   - 役選択モードの主要操作
   - 翻符入力モード
   - 符計算補助
   - モード切替時の状態保持
+  - 戦績タブの読み込みに失敗しても点数計算が使えること
 
 ## 現在の制限
 

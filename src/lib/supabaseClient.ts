@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { UserFacingError } from './errorMessage';
+import type { Database } from '../types/database';
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -16,9 +17,9 @@ if (!isSupabaseConfigured && import.meta.env.DEV) {
   );
 }
 
-export const supabase: SupabaseClient | null =
+export const supabase: SupabaseClient<Database> | null =
   url && anonKey
-    ? createClient(url, anonKey, {
+    ? createClient<Database>(url, anonKey, {
         auth: {
           persistSession: true,
           autoRefreshToken: true,
@@ -28,7 +29,7 @@ export const supabase: SupabaseClient | null =
     : null;
 
 /** Supabase クライアントを取得する。未設定の場合はユーザー向けのエラーを投げる。 */
-export function requireSupabase(): SupabaseClient {
+export function requireSupabase(): SupabaseClient<Database> {
   if (!supabase) {
     throw new UserFacingError('記録機能は現在利用できません。');
   }

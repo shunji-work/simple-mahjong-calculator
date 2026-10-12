@@ -43,6 +43,14 @@ export const STORED_GENRE_OPTIONS: ReadonlyArray<{ id: StoredGenre; label: strin
   { id: 'friend', label: '友人' },
 ];
 
+export function isRuleset(value: string): value is Ruleset {
+  return RULESETS.some((ruleset) => ruleset === value);
+}
+
+export function isStoredGenre(value: string): value is StoredGenre {
+  return STORED_GENRE_OPTIONS.some((option) => option.id === value);
+}
+
 export const GENRE_LABEL: Record<StoredGenre, string> = {
   free_5: 'フリー5',
   free_1: 'フリー1',

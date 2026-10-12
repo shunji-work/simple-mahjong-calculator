@@ -283,6 +283,12 @@ describe('listRecentGames', () => {
     expect(result.games[0]).toMatchObject({ id: 'game-3', userId: 'user-1', score: 60000 });
   });
 
+  it('rejects rows whose ruleset or genre the app does not know', async () => {
+    supabaseMock.setResult({ data: [{ ...ROW, genre: 'unknown' }], error: null, count: 1 });
+
+    await expect(listRecentGames('user-1')).rejects.toThrow('想定外');
+  });
+
   it('filters by ruleset and a single genre on the server', async () => {
     supabaseMock.setResult({ data: [], error: null, count: 0 });
 

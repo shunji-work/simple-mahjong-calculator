@@ -1,7 +1,10 @@
 import { requireSupabase } from './supabaseClient';
 import { UserFacingError } from './errorMessage';
+import type { Tables } from '../types/database';
 import {
   STAR_THRESHOLD,
+  isRuleset,
+  isStoredGenre,
   type FilterGenre,
   type GameRecord,
   type NewGameInput,
@@ -13,19 +16,13 @@ import {
 export const GAME_COLUMNS =
   'id, user_id, played_at, ruleset, score, rank, genre, memo, created_at';
 
-interface GameRow {
-  id: string;
-  user_id: string;
-  played_at: string;
-  ruleset: GameRecord['ruleset'];
-  score: number;
-  rank: number;
-  genre: GameRecord['genre'];
-  memo: string | null;
-  created_at: string;
-}
+type GameRow = Tables<'games'>;
 
 function rowToRecord(row: GameRow): GameRecord {
+  // DB 上は text 型なので、アプリの型に合う値かを確かめてから使う（CHECK 制約で通常は弾かれている）
+  if (!isRuleset(row.ruleset) || !isStoredGenre(row.genre)) {
+    throw new Error(`games の値が想定外です: ruleset=${row.ruleset}, genre=${row.genre}`);
+  }
   return {
     id: row.id,
     userId: row.user_id,
@@ -56,7 +53,7 @@ export async function insertGame(input: NewGameInput): Promise<GameRecord> {
 
   if (error) throw error;
   if (!data) throw new UserFacingError('対局の保存に失敗しました。');
-  return rowToRecord(data as GameRow);
+  return rowToRecord(data);
 }
 
 export interface UpdateGameInput {
@@ -97,7 +94,7 @@ export async function updateGame(input: UpdateGameInput): Promise<GameRecord> {
     throw error;
   }
   if (!data) throw new UserFacingError('対局の更新に失敗しました。');
-  return rowToRecord(data as GameRow);
+  return rowToRecord(data);
 }
 
 export async function deleteGame(id: string, userId: string): Promise<void> {
@@ -177,6 +174,6 @@ export async function listRecentGames(
     .limit(limit);
 
   if (error) throw error;
-  const games = (data ?? []).map((row) => rowToRecord(row as GameRow));
+  const games = (data ?? []).map(rowToRecord);
   return { games, total: count ?? games.length };
 }
