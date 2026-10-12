@@ -203,6 +203,8 @@ describe('getHanFuError', () => {
   it('rejects 25符 outside menzen chiitoitsu', () => {
     expect(getHanFuError({ ...base, fu: 25, hasNaki: true })).toContain('鳴き');
     expect(getHanFuError({ ...base, fu: 25, han: 1 })).toContain('1翻');
+    expect(getHanFuError({ ...base, fu: 25 })).toContain('3翻');
+    expect(getHanFuError({ ...base, fu: 25, han: 3 })).toBeNull();
   });
 });
 

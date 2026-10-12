@@ -208,6 +208,9 @@ export function getHanFuError({
   if (fu === 25) {
     if (hasNaki) return '25符（七対子）は鳴きありでは成立しません';
     if (han < 2) return '25符（七対子）は七対子だけで2翻あるため、1翻にはなりません';
+    if (winMethod === 'tsumo' && han < 3) {
+      return '25符（七対子）のツモは門前ツモが付くため、最低3翻になります';
+    }
   }
 
   return null;
