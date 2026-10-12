@@ -17,7 +17,13 @@ test.describe('mahjong score calculator', () => {
   test('calculates yaku mode score from selected roles', async ({ page }) => {
     await page.goto('/');
 
+    // 初期状態はロンなので、リーチだけなら門前ツモは付かず 1翻
     await page.getByTestId('yaku-riichi').click();
+
+    await expect(page.locator(visibleParagraph('1翻 40符'))).toBeVisible();
+    await expect(page.locator(visibleText('1,300')).first()).toBeVisible();
+
+    await page.getByRole('button', { name: 'ツモ', exact: true }).first().click();
 
     await expect(page.locator(visibleParagraph('2翻 30符'))).toBeVisible();
     await expect(page.locator(visibleText('ツモ支払い')).first()).toBeVisible();
@@ -78,6 +84,7 @@ test.describe('mahjong score calculator', () => {
   test('shows oya tsumo as all-pay', async ({ page }) => {
     await page.goto('/');
 
+    await page.getByRole('button', { name: 'ツモ', exact: true }).first().click();
     await page.getByRole('button', { name: '子', exact: true }).click();
     await page.getByTestId('yaku-riichi').click();
 
@@ -192,6 +199,7 @@ test.describe('mahjong score calculator', () => {
     await page.goto('/');
 
     await switchToManualMode(page);
+    await page.getByRole('button', { name: 'ツモ', exact: true }).first().click();
     await page.getByRole('button', { name: '子', exact: true }).click();
     await incrementStepper(page.getByTestId('manual-han-stepper'), 4);
     await incrementStepper(page.getByTestId('manual-fu-stepper'), 3);

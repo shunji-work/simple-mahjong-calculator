@@ -47,14 +47,14 @@ const MAX_DORA = 20;
 const DEFAULT_GAME_STATE: GameState = {
   selectedYaku: [],
   doraCount: 0,
-  winMethod: 'tsumo',
+  winMethod: 'ron',
   hasNaki: false,
   isOya: false,
 };
 
 const DEFAULT_MANUAL_STATE: ManualState = {
   isOya: false,
-  winMethod: 'tsumo',
+  winMethod: 'ron',
   hasNaki: false,
   han: null,
   fu: null,
