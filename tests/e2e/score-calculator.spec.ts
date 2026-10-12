@@ -237,4 +237,17 @@ test.describe('mahjong score calculator', () => {
     await expect(page.getByTestId('manual-fu-stepper').getByText('40符')).toBeVisible();
     await expect(page.getByTestId('manual-fu-stepper').getByText('直接入力')).toBeVisible();
   });
+
+  test('keeps the calculator usable when the records tab fails to load', async ({ page }) => {
+    // オフライン時などに戦績タブの部品を読み込めない状況を再現する
+    await page.route(/\/src\/components\/RecordsView\.tsx/, (route) => route.abort());
+    await page.goto('/');
+
+    await page.getByRole('button', { name: /戦績/ }).click();
+    await expect(page.getByText('戦績を表示できませんでした')).toBeVisible();
+
+    await page.getByRole('button', { name: /点数計算/ }).click();
+    await page.getByTestId('yaku-riichi').click();
+    await expect(page.locator(visibleParagraph('1翻 40符'))).toBeVisible();
+  });
 });
